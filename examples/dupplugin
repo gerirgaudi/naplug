@@ -1,0 +1,23 @@
+#!/usr/bin/env ruby
+
+lib = File.expand_path(File.dirname(__FILE__) + '/../lib')
+$LOAD_PATH.unshift(lib) if File.directory?(lib) && !$LOAD_PATH.include?(lib)
+
+require 'rubygems'
+require 'naplug'
+
+class DupPlugin < Nagios::Plugin
+
+  plugin do
+    Result.new :ok, 'dup plugin ok'
+  end
+
+  plugin do
+    Result.new :ok, 'dup plugin ok'
+  end
+end
+
+plugin = DupPlugin.new
+plugin.exec
+puts plugin.single_line_output
+exit plugin.exit_code

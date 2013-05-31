@@ -4,7 +4,7 @@
 
 ## Overview
 
-The minimal (and admittedly not very useful) example:
+A minimal (and admittedly not very useful) example:
 
     require 'naplug'
     
@@ -36,7 +36,7 @@ This, of course, isn't really enough. The plugin needs work to do, which can be 
 	exit plugin.status.to_i   
     
 
-Notice that `plugin` must always return a `Result`. You can define plugin in any way you choose, accepting whatever arguments are necessary. Let's make the above example a little more flexible and robust:
+Notice that `plugin` must always return a `Result`. You can define `plugin` in any way you choose, accepting whatever arguments are necessary. Let's make the above example a little more flexible and robust:
 
     require 'naplug'
 
@@ -94,42 +94,58 @@ Plugins sometimes need helpers, and this can be accomplished by defining `privat
       
     end
      
-### Plugins with Sub-plugins
+### Sub-plugins
  
-Plugins sometimes need to perform a number of tasks to reach a conclussion about the state of the service. WHile this could be handled in a single `plugin` block, it's cleaner to define multiple ones and let `Nagios::Plugin` do the dirty work.
+Plugins sometimes need to perform a number of tasks to reach a final, _aggregated_ status of the check. This could be done in a single `plugin` block, but it is far cleaner to define multiple `plugins` and let `Nagios::Plugin` do the dirty work.
+
+When `plugin` is called as shown in the examples above, an implicit _tag_ `main` is created for the plugin. Said tags can, however, be explicitly defined, which is handy with sub-plugins:
 
     require 'naplug'
     
     class MultiPlugin < Nagios::Plugin
     
-      plugin :mtime do |args|
+      plugin :subplug1 do |args|
         ...
       end
       
-      plugin :size do |args|
+      plugin :subplug2 do |args|
         ...
       end
       
     end
     
-    multiplugin = MultiPlugin.new(:marker_file => '/tmp/my_marker', 
-                                  :mtime => { :critical => 120, :warning => 60 }, 
-                                  :size => { :critical => 1 })
-    multiplugin.exec!
+Plugin tags are used internally to keep track of different bits of data relevant to each sub-plugin. On the outside, tags are how arguments are passed on to the appropriate sub-plugin:
 
-There are a number of things to observe in this case. When the plugin is instantiated, an argument key that matches a `plugin` tag is assumed to contain arguments for said subplugin. Any others are considered shared arguments. Thus, when the actual calls are made, the argument hashes are merged. Thus, in the above example, the following calls will take place:
+	multiplugin = MultiPlugin.new(:subplug1 => { :critical => 120, :warning => 60 }, 
+                                  :subplug2 => { :ok => 0, :warning => 5, :critical => 10 })
 
-    plugin_mtime :marker_file => '/tmp/my_marker', :critical => 120, :warning => 60
+When the plugin is instantiated, an argument key that matches a sub`plugin` tag is assumed to contain arguments for said subplugin.
+
+#### Shared Arguments
+
+In some cases, it may be desirable to provide shared arguments. This is done by passing arguments keys that do not match any of the subplugin tags.
+
+	multiplugin = MultiPlugin.new(:shared => '/tmp/file',
+	                              :subplug1 => { :critical => 120, :warning => 60 }, 
+                                  :subplug2 => { :ok => 0, :warning => 5, :critical => 10 })
+
+
+Thus, when the actual calls are made, the argument hashes are merged. Thus, in the above example, the following calls will take place:
+
+    plugin_subplug1 :shared => '/tmp/file', :critical => 120, :warning => 60
 
 and
 
-    plugin_size :marker_file => '/tmp/my_marker', :critical => 1
+    plugin_subplug2 :shared => '/tmp/file', :ok => 0, :warning => 5, :critical => 10
 
 Arguments can be overwritten:
 
-    multiplugin = MultiPlugin.new(:marker_file => '/tmp/my_marker', 
-                                  :mtime => { :marker_file => '/tmp/our_marker', :critical => 120, :warning => 60 }, 
-                                  :size => { :critical => 1 })
+    multiplugin = MultiPlugin.new(:shared => '/tmp/file', 
+                                  :subplug1 => { :shared => '/var/tmp/file', :critical => 120 },
+                                  :subplug2 => { :ok => 0, :warning => 5, :critical => 10 })
+
+ 
+                                 
 
       
   
