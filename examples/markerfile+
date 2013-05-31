@@ -1,0 +1,35 @@
+#!/usr/bin/env ruby
+
+lib = File.expand_path(File.dirname(__FILE__) + '/../lib')
+$LOAD_PATH.unshift(lib) if File.directory?(lib) && !$LOAD_PATH.include?(lib)
+
+require 'rubygems'
+require 'naplug'
+
+class MarkerFilePlugin < Nagios::Plugin
+
+  plugin do |args|
+    result = Result.new
+    begin
+      delta = Time.now - File.mtime(args[:marker_file])
+      result.output = 'marker file is %d seconds out of date' % [delta]
+      case
+        when delta < args[:w_seconds]
+          result.status = :ok
+          result.output = 'marker file %s is up to date' % [args[:marker_file]]
+        when (args[:w_seconds]..args[:c_seconds]).include?(delta)
+          result.status = :warning
+        when delta >= args[:c_seconds]
+          result.status = :critical
+      end
+    rescue Errno::ENOENT => e
+      result.status = :unknown
+      result.output = 'marker file %s does not exist' % [args[:marker_file]]
+      result.payload = e
+    end
+    result
+  end
+end
+
+plugin = MarkerFilePlugin.new :marker_file => '/tmp/my_marker', :c_seconds => 120, :w_seconds => 60
+plugin.exec!
