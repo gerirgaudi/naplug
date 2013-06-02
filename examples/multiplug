@@ -1,0 +1,21 @@
+#!/usr/bin/env ruby
+
+lib = File.expand_path(File.dirname(__FILE__) + '/../lib')
+$LOAD_PATH.unshift(lib) if File.directory?(lib) && !$LOAD_PATH.include?(lib)
+
+require 'rubygems'
+require 'naplug'
+
+class MultiPlugin < Nagios::Plugin
+
+  plugin :p1 do |args|
+    Result.new :ok, 'p1 plugin ok'
+  end
+
+  plugin :p2 do |args|
+    Result.new :ok, 'p2 plugin ok'
+  end
+end
+
+plugin = MultiPlugin.new :shared1 => 'shared arg2', :shared2 => 'shared arg 2', :p1 => { :c => 0 }
+plugin.exec!

@@ -1,6 +1,16 @@
 # naplug
 
-*Naplug* is a Nagios plugin library for Ruby. In its current version it really concerns itself only with internal aspects of the plugins (vs external aspects such as option parsers and such, which will likely be a future feature).
+*Naplug* is a Nagios plugin library for Ruby. In its current incantation it really concerns itself only with internal aspects of a plugin (i.e., handling status, output and exit codes) vs external aspects (such as option parsers), which will likely be a future feature.
+
+## Anatomy of a Nagios Plugin
+
+Before writing a plugin, you should read the [Nagios Plugin Developer Guidelines](http://nagiosplug.sourceforge.net/developer-guidelines.html). *Naplug*’s aim is to codify said guidelines to ease the task of writing a plugin in Ruby and _handling the paperwork_. It also aids in writing more complex plugins by allowing _subplugins_ (i.e., plugins within plugins, which produce results that are then evaluated as a whole to generate a _global_ plugin result).
+
+### Results
+
+In Naplug, a plugin (and its associated subplugins) produce `Result`s, which encapsulate useful bits of information about the state of the plugin before and after execution, including *status*, *output* and *payload*. All `Result`s start their life with an `UNKNOWN` status.
+
+A `Status` has both a numeric and string representation. The numeric representation is useful to produce the correct exit code and generate the appropiate output.
 
 ## Overview
 
@@ -11,7 +21,7 @@ A minimal (and admittedly not very useful) example:
     class MyPlugin << Nagios::Plugin
     end
     
-This, of course, isn't really enough. The plugin needs work to do, which can be accomplished by defining the plugin through the `plugin` method. Take, for example, a plugin that checks the staleness of a marker file: 
+This, of course, isn't really enough. The plugin needs work to do, which can be accomplished by defining the plugin through the `plugin` method, which must always return a `Result`. Take, for example, a plugin that checks the staleness of a marker file: 
 
     require 'naplug'
 
@@ -31,12 +41,9 @@ This, of course, isn't really enough. The plugin needs work to do, which can be 
 	end
 
 	plugin = MarkerFilePlugin.new :marker_file => '/tmp/my_marker', :critical => 120
-	plugin.exec
-	puts plugin.single_line_output
-	exit plugin.status.to_i   
-    
+	plugin.exec!    
 
-Notice that `plugin` must always return a `Result`. You can define `plugin` in any way you choose, accepting whatever arguments are necessary. Let's make the above example a little more flexible and robust:
+A `plugin` can be defined in an aribitrary fashion, accepting whatever arguments are necessary. Let's make the above example a little more flexible and robust:
 
     require 'naplug'
 
@@ -76,7 +83,7 @@ Some interesting observations about the above code:
 
 ### Helpers
 
-Plugins sometimes need helpers, and this can be accomplished by defining `private` methods in the class, which can then be used in the plugin. `Nagios::Plugin` does not enforce the privacy of the said helpers, but it's good form to make them so.
+Plugins sometimes need helpers, and this can be accomplished by defining `private` methods in the class, which can then be used by the plugin. `Nagios::Plugin` does not enforce the privacy of the said helpers, but it's good form to make them so.
    
     class HelpedPlugin < Nagios::Plugin
     
@@ -96,9 +103,9 @@ Plugins sometimes need helpers, and this can be accomplished by defining `privat
      
 ### Sub-plugins
  
-Plugins sometimes need to perform a number of tasks to reach a final, _aggregated_ status of the check. This could be done in a single `plugin` block, but it is far cleaner to define multiple `plugins` and let `Nagios::Plugin` do the dirty work.
+Plugins sometimes need to perform a number of tasks to reach a final, _aggregated_ status of the check. This could be done in a single `plugin` block, but it is far cleaner to define multiple `plugins` and let `Nagios::Plugin` do the aggregation work, which essentially consists of finding the worst `Result`.
 
-When `plugin` is called as shown in the examples above, an implicit _tag_ `main` is created for the plugin. Said tags can, however, be explicitly defined, which is handy with sub-plugins:
+When `plugin` is called as shown in the examples above, an implicit _tag_ `main` is created for the plugin. Said tags can, however, be explicitly defined, which is handy with sub-plugins in order to pass them the right set of arguments:
 
     require 'naplug'
     
