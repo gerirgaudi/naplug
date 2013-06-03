@@ -10,12 +10,12 @@ class MultiPlugin < Nagios::Plugin
 
   plugin :p1 do |plug|
     plug.status = :ok
-    plug.output = 'p1 plugin ok'
+    plug.output = "#{plug.tag} args: #{plug.args}"
   end
 
   plugin :p2 do |plug|
     plug.status = :ok
-    plug.output = 'p2 plugin ok'
+    plug.output = "#{plug.tag} args: #{plug.args}"
   end
 end
 
