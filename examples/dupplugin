@@ -8,16 +8,16 @@ require 'naplug'
 
 class DupPlugin < Nagios::Plugin
 
-  plugin do
-    Result.new :ok, 'dup plugin ok'
+  plugin do |plug|
+    plug.status = :ok
+    plug.output = 'not really; will fail'
   end
 
-  plugin do
-    Result.new :ok, 'dup plugin ok'
+  plugin do |plug|
+    plug.status = :ok
+    plug.output = 'not really; will fail'
   end
 end
 
 plugin = DupPlugin.new
-plugin.exec
-puts plugin.single_line_output
-exit plugin.exit_code
+plugin.exec!
