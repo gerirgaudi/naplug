@@ -8,26 +8,24 @@ require 'naplug'
 
 class MarkerFilePlugin < Nagios::Plugin
 
-  plugin do |args|
-    result = Result.new
+  plugin do |plug|
     begin
-      delta = Time.now - File.mtime(args[:marker_file])
-      result.output = 'marker file is %d seconds out of date' % [delta]
+      delta = Time.now - File.mtime(plug.args[:marker_file])
+      plug.output = 'marker file is %d seconds out of date' % [delta]
       case
-        when delta < args[:w_seconds]
-          result.status = :ok
-          result.output = 'marker file %s is up to date' % [args[:marker_file]]
-        when (args[:w_seconds]..args[:c_seconds]).include?(delta)
-          result.status = :warning
-        when delta >= args[:c_seconds]
-          result.status = :critical
+        when delta < plug.args[:w_seconds]
+          plug.status = :ok
+          plug.output = 'marker file %s is up to date' % [plug.args[:marker_file]]
+        when (plug.args[:w_seconds]..plug.args[:c_seconds]).include?(delta)
+          plug.status = :warning
+        when delta >= plug.args[:c_seconds]
+          plug.status = :critical
       end
     rescue Errno::ENOENT => e
-      result.status = :unknown
-      result.output = 'marker file %s does not exist' % [args[:marker_file]]
-      result.payload = e
+      plug.status = :unknown
+      plug.output = 'marker file %s does not exist' % [plug.args[:marker_file]]
+      plug.payload = e
     end
-    result
   end
 end
 

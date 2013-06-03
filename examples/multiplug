@@ -8,12 +8,14 @@ require 'naplug'
 
 class MultiPlugin < Nagios::Plugin
 
-  plugin :p1 do |args|
-    Result.new :ok, 'p1 plugin ok'
+  plugin :p1 do |plug|
+    plug.status = :ok
+    plug.output = 'p1 plugin ok'
   end
 
-  plugin :p2 do |args|
-    Result.new :ok, 'p2 plugin ok'
+  plugin :p2 do |plug|
+    plug.status = :ok
+    plug.output = 'p2 plugin ok'
   end
 end
 

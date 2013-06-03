@@ -2,6 +2,30 @@ module Nagios
 
   module PluginMixin
 
+    class Plug
+
+      attr_reader :tag, :block
+      attr_accessor :args, :output, :payload
+
+      def initialize(tag, block, args = {})
+        @tag = tag
+        @args = args
+        @block = block
+        @_status = Status.new :unknown
+        @output = 'uninitialized plug'
+        @payload = nil
+      end
+
+      def status= (s)
+        @_status.send(s)
+      end
+
+      def status
+        @_status
+      end
+
+    end
+
     class Status
 
       include Comparable
@@ -39,30 +63,6 @@ module Nagios
           when self.to_i > other.to_i then 1
           else 0
         end
-      end
-
-    end
-
-    class Result
-
-      attr_accessor :status, :output, :payload, :exit_code
-
-      def initialize(status = Status.new(:unknown), output = 'uninitialized plugin', payload = nil)
-        @status = status
-        @output = output
-        @payload = payload
-      end
-
-      def status= (s)
-        @status.send(s)
-      end
-
-      def exit_code
-        @status.to_i
-      end
-
-      def to_s
-        '%s: %s' % [@status,@output]
       end
 
     end
