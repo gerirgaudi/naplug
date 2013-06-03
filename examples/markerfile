@@ -8,20 +8,16 @@ require 'naplug'
 
 class MarkerFilePlugin < Nagios::Plugin
 
-  plugin do |args|
-    result = Result.new
-    if Time.now - File.mtime(args[:marker_file]) > args[:critical]
-      result.status = :critical
-      result.output = 'marker mtime greater than 60 seconds'
+  plugin do |plug|
+    if Time.now - File.mtime(plug.args[:marker_file]) > plug.args[:critical]
+      plug.status = :critical
+      plug.output = 'marker mtime greater than 60 seconds'
     else
-      result.status = :ok
-      result.output = 'marker up to date'
+      plug.status = :ok
+      plug.output = 'marker up to date'
     end
-    result
   end
 end
 
 plugin = MarkerFilePlugin.new :marker_file => '/tmp/my_marker', :critical => 120
-plugin.exec
-puts plugin.single_line_output
-exit plugin.exit_code
+plugin.exec!

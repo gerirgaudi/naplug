@@ -1,6 +1,6 @@
 # naplug
 
-*Naplug* is a Nagios plugin library for Ruby. In its current incantation it really concerns itself only with internal aspects of a plugin (i.e., handling status, output and exit codes) vs external aspects (such as option parsers), which will likely be a future feature.
+*Naplug* is a Nagios plugin library for Ruby. In its current incantation it only concerns itself with internal aspects of a plugin (i.e., handling status, output and exit codes) vs external aspects (such as option parsers), which will likely be a future feature.
 
 ## Anatomy of a Nagios Plugin
 
@@ -27,14 +27,13 @@ This, of course, isn't really enough. The plugin needs work to do, which can be 
 
 	class MarkerFilePlugin < Nagios::Plugin
 
-  	  plugin do |args|
-  	    result = Result.new
-	    if Time.now - File.mtime(args[:marker_file]) > args[:critical]
-	      result.status = :critical
-	      result.output = 'marker mtime greater than 60 seconds'
+  	  plugin do |plug|
+	    if Time.now - File.mtime(plug.args[:marker_file]) > plug.args[:critical]
+	      plug = :critical
+	      plug = 'marker mtime greater than 60 seconds'
   	    else
-  	      result.status = :ok
-  	      result.output = 'marker up to date'
+  	      plug = :ok
+  	      plug = 'marker up to date'
   	    end
  	    result
       end
@@ -49,26 +48,24 @@ A `plugin` can be defined in an aribitrary fashion, accepting whatever arguments
 
 	class MarkerFilePlugin < Nagios::Plugin
 
-  	  plugin do |args|
-        result = Result.new
+  	  plugin do |plug|
         begin
-          delta = Time.now - File.mtime(args[:marker_file])
-          result.output = 'marker file is %d seconds out of date' % [delta]
+          delta = Time.now - File.mtime(plug.args[:marker_file])
+          plug = 'marker file is %d seconds out of date' % [delta]
           case
-            when delta < args[:w_seconds]
-              result.status = :ok
-              result.output = 'marker file %s is up to date' % [args[:marker_file]]
-            when (args[:w_seconds]..args[:c_seconds]).include?(delta)
-              result.status = :warning
+            when delta < plug.args[:w_seconds]
+              plug.status = :ok
+              plug.output = 'marker file %s is up to date' % [args[:marker_file]]
+            when (plug.args[:w_seconds]..plug.args[:c_seconds]).include?(delta)
+              plug.status = :warning
             when delta >= args[:c_seconds]
-              result.status = :critical
+              plug.status = :critical
           end
         rescue Errno::ENOENT => e
-          result.status = :unknown
-          result.output = 'marker file %s does not exist' % [args[:marker_file]]
-          result.payload = e
+          plug.status = :unknown
+          plug.output = 'marker file %s does not exist' % [args[:marker_file]]
+          plug.payload = e
         end
-        result
       end
     end
 
@@ -78,7 +75,7 @@ A `plugin` can be defined in an aribitrary fashion, accepting whatever arguments
 Some interesting observations about the above code:
 
 * The case where the marker file is missing is handled, resulting in an `unknown` status
-* The exception is saved as the `result.payload`, in case this is useful to the caller
+* The exception is saved as the `plug.payload`, in case this is useful to the caller
 * The `exec!` call is used, which instructs the plugin to execute, output and exit in a single call
 
 ### Helpers
@@ -87,41 +84,43 @@ Plugins sometimes need helpers, and this can be accomplished by defining `privat
    
     class HelpedPlugin < Nagios::Plugin
     
-      plugin do |args|
-        size, mtime = file_mtime_and_size(args[:market_file]
+      plugin do |plug|
+        size, mtime = file_mtime_and_size plug.args[:market_file]
         ... 
       end
       
       private
       
       def file_mtime_and_size(file)
-        fs = File.stat(file)
+        fs = File.stat file 
         return fs.size,fs.mtime
       end
       
     end
      
-### Sub-plugins
+### Plugs
  
-Plugins sometimes need to perform a number of tasks to reach a final, _aggregated_ status of the check. This could be done in a single `plugin` block, but it is far cleaner to define multiple `plugins` and let `Nagios::Plugin` do the aggregation work, which essentially consists of finding the worst `Result`.
+Plugins sometimes need to perform a number of possibly independent tasks to reach a final, _aggregated_ status of the check. In *Naplug*, these tasks are referred to as *plugs*, and they are identified by *tags*. When `plugin` is called as shown in the examples above, a *plug* is created with an implicit _tag_ `main`.
 
-When `plugin` is called as shown in the examples above, an implicit _tag_ `main` is created for the plugin. Said tags can, however, be explicitly defined, which is handy with sub-plugins in order to pass them the right set of arguments:
+Tags can be explicitly defined, which is handy with sub-plugins in order to pass them the right set of arguments:
 
     require 'naplug'
     
     class MultiPlugin < Nagios::Plugin
     
-      plugin :subplug1 do |args|
+      plugin :subplug1 do |plug|
         ...
       end
       
-      plugin :subplug2 do |args|
+      plugin :subplug2 do |plug|
         ...
       end
       
     end
-    
-Plugin tags are used internally to keep track of different bits of data relevant to each sub-plugin. On the outside, tags are how arguments are passed on to the appropriate sub-plugin:
+
+While it is possible to create a single *plug* that handles all the tasks, it is far cleaner to define multiple `plugs` and let `Nagios::Plugin` do the aggregation work.
+
+Tags are used internally to keep track of different bits of data relevant to each plug. On the outside, tags are how arguments are passed on to the appropriate sub-plugin:
 
 	multiplugin = MultiPlugin.new(:subplug1 => { :critical => 120, :warning => 60 }, 
                                   :subplug2 => { :ok => 0, :warning => 5, :critical => 10 })
