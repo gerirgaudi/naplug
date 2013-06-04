@@ -10,7 +10,7 @@ Gem::Specification.new do |s|
   s.name                      = Naplug::ME.to_s
   s.version                   = Naplug::VERSION
   s.platform                  = Gem::Platform::RUBY
-  s.authors                   = "Gerardo López-Fernádez"
+  s.authors                   = 'Gerardo López-Fernádez'
   s.email                     = 'gerir@evernote.com'
   s.homepage                  = 'https://github.com/gerirgaudi/naplug'
   s.summary                   = 'A Ruby library for Nagios plugins'
