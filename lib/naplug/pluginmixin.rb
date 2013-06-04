@@ -17,7 +17,7 @@ module Nagios
       end
 
       def status= (s)
-        @_status.send(s)
+        @_status.send(:set, s)
       end
 
       def status
@@ -40,8 +40,7 @@ module Nagios
       }
 
       def initialize(status = :unknown)
-        raise InvalidStatus, "invalid status #{status}" unless STATUS.include?(status)
-        @status = status.to_sym
+        self.set(status)
       end
 
       def to_s
@@ -52,9 +51,9 @@ module Nagios
         STATUS[@status].i
       end
 
-      def method_missing(m, *args, &block)
-        raise InvalidStatus, "invalid status #{m}" unless STATUS.include?(m.to_sym)
-        @status = m.to_sym
+      def set(status)
+        raise InvalidStatus, "invalid status #{status}" unless STATUS.include?(status)
+        @status = status.to_sym
       end
 
       def <=>(other)
