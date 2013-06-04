@@ -1,4 +1,5 @@
 require 'ostruct'
+require 'logger'
 require 'naplug/pluginmixin'
 require 'awesome_print'
 
@@ -7,7 +8,9 @@ module Nagios
   class Plugin
 
     @plugins = {}
-    class << self; attr_accessor :plugins end
+    @logger = Logger.new(STDERR)
+    @logger.level = Logger::WARN
+    class << self; attr_accessor :plugins, :logger end
     class DuplicatePlug < StandardError; end
     class UnknownPlug < StandardError; end
 
@@ -19,14 +22,16 @@ module Nagios
 
     def self.inherited(subclass)
       subclass.plugins = {}
+      subclass.logger = self.logger
     end
 
     include PluginMixin
 
-    attr_reader :plugins
+    attr_reader :plugins, :logger
 
-    def initialize(args = {})
+    def initialize(args = {}, options = {})
       @plugins = self.class.plugins
+      @logger = options[:log].nil? ? self.class.logger : options[:log]
       @status = Status.new :unknown
       @output = 'uninitialized plugin'
       @payload = nil
@@ -35,6 +40,7 @@ module Nagios
 
     def exec
       @plugins.each_value do |plug|
+        @logger.debug "exec #{plug.tag}"
         instance_exec plug, &plug.block
       end
     end
@@ -98,7 +104,7 @@ module Nagios
       t.nil? ? :main : t.to_sym
     end
 
-    def process_args(args)
+    def process_args(args,mode = nil)
       @plugins.each do |t,p|
         p.args = args.select { |k,v| @plugins[k].nil? }
         p.args.merge!(args[t]) unless args[t].nil?

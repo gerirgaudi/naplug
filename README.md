@@ -2,7 +2,7 @@
 
 *Naplug* is a Nagios plugin library for Ruby. In its current incantation it only concerns itself with internal aspects of a plugin (i.e., handling status, output and exit codes) vs external aspects (such as option parsers), which will likely be a future feature. It currently does not handle performance data.
 
-*Naplug* introduces the concept of a *plug*, which is a useful abstraction to break up significant tasks the plugin as a whole must perform in order to determine the state of a service or host. *Plug*, like plugins, have a status and output. 
+*Naplug* introduces the concept of a *plug*, which is a useful abstraction to break up significant tasks the plugin as a whole must perform in order to determine the state of a service or host. Plugs, like plugins, have status and output. 
 
 ## Anatomy of a Nagios Plugin
 
