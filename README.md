@@ -31,8 +31,8 @@ This, of course, isn't really enough. The plugin needs work to do, which can be 
   	      plug = :ok
   	      plug = 'marker up to date'
   	    end
-      end
-	end
+      end
+    end
 
 	plugin = MarkerFilePlugin.new :marker_file => '/tmp/my_marker', :critical => 120
 	plugin.exec!    
