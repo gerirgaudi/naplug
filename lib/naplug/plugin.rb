@@ -1,7 +1,6 @@
 require 'ostruct'
 require 'logger'
 require 'naplug/pluginmixin'
-require 'awesome_print'
 
 module Nagios
 
@@ -35,6 +34,7 @@ module Nagios
       @status = Status.new :unknown
       @output = 'uninitialized plugin'
       @payload = nil
+      @args = args
       process_args(args)
     end
 
@@ -47,7 +47,7 @@ module Nagios
 
     def eval
       status = Status.new :ok
-      output = 'everything ok'
+      output = ''
 
       @plugins.each_value do |plug|
         if plug.status > status
