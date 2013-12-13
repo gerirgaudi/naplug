@@ -51,10 +51,10 @@ module Nagios
 
       @plugins.each_value do |plug|
         if plug.status > status
-          output = plug.output
+          output = "#{plug.tag}: [#{plug.output}] "
           status = plug.status
         elsif plug.status == status
-          output << "; #{plug.output}" unless plug.output.nil?
+          output << "#{plug.tag}: [#{plug.output}] " unless plug.output.nil?
         end
       end
 
