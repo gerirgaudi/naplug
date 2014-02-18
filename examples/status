@@ -1,0 +1,33 @@
+#!/usr/bin/env ruby
+
+lib = File.expand_path(File.dirname(__FILE__) + '/../lib')
+$LOAD_PATH.unshift(lib) if File.directory?(lib) && !$LOAD_PATH.include?(lib)
+
+require 'rubygems'
+require 'naplug/status'
+
+module Naplug
+
+  module Examples
+
+    puts "All statuses:"
+    Naplug::Status.states.each do |state|
+      status = Naplug::Status.new state
+      puts "  status #{status} has exit code #{status.to_i}"
+    end
+
+    puts "Working with a status:"
+    status = Naplug::Status.new
+    puts "  status #{status} has exit code #{status.to_i} after initialization"
+    status.ok
+    puts "  status #{status} has exit code #{status.to_i} after status.ok"
+
+    puts "Comparing statuses:"
+    status1 = Naplug::Status.new :warning
+    if status < status1
+      puts "  status [#{status}] < status1 [#{status1}] is true"
+    end
+
+  end
+
+end

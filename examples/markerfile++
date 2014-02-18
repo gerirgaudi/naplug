@@ -1,0 +1,40 @@
+#!/usr/bin/env ruby
+
+lib = File.expand_path(File.dirname(__FILE__) + '/../lib')
+$LOAD_PATH.unshift(lib) if File.directory?(lib) && !$LOAD_PATH.include?(lib)
+
+require 'rubygems'
+require 'naplug'
+
+class MarkerFilePlusPlusPlugin
+
+  include Naplug
+
+  plugin do |p|
+    delta, size = file_mtime_and_size p[:marker_file]
+    case
+      when (delta < p[:w_seconds] and size > p[:c_size])
+        p.status.ok!
+        p.output! "marker file %s is up to date and not empty" % [p[:marker_file]]
+      when (p[:w_seconds]..p[:c_seconds]).include?(delta), size > p[:c_size]
+        p.status.warning!
+        p.output! "marker file is %d seconds out of date" % [delta]
+      when delta >= p[:c_seconds], size == p[:c_size]
+        p.status.critical!
+        p.output! "marker file is %d seconds out of date or empty" % [delta]
+      else
+        p.outout! "marker file is in an inconsistent state"
+    end
+  end
+
+  private
+
+  def file_mtime_and_size(file)
+    fs = File.stat file
+    return Time.now - fs.mtime,fs.size
+  end
+
+end
+
+#plugin = MarkerFilePlusPlusPlugin.new :marker_file => '/tmp/my_marker', :c_seconds => 120, :w_seconds => 60, :c_size => 0
+#plugin.exec!

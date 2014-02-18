@@ -1,3 +1,3 @@
 module Naplug
-  VERSION = '0.3.7'
+  VERSION = '1.1.0'
 end

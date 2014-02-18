@@ -1,0 +1,42 @@
+#!/usr/bin/env ruby
+
+lib = File.expand_path(File.dirname(__FILE__) + '/../lib')
+$LOAD_PATH.unshift(lib) if File.directory?(lib) && !$LOAD_PATH.include?(lib)
+
+require 'rubygems'
+require 'naplug'
+
+class MultiPluginPlugin
+
+  include Naplug
+
+  plugin :one do |p|
+
+    plug :p1 do |p1|
+      p1.status.ok!
+      p1.output! "#{p1.tag} args: #{p.args}"
+    end
+
+    plug :p2 do |p2|
+      p2.status.critical!
+      p2.output! "tis critical!"
+    end
+
+    plug :p3 do |p3|
+      p3.status.unknown!
+      p3.output! "tis unknown! #{p3.args}"
+    end
+
+  end
+
+  plugin :two do |p|
+
+    p.status.ok!
+    p.output! "plugin #{p.tag}"
+
+  end
+
+end
+
+plugin = MultiPluginPlugin.new :two => 'plugin one (non-shared', :shared1 => 'shared arg 1', :one => { :p3 => 0 }
+plugin.one!

@@ -6,11 +6,13 @@ $LOAD_PATH.unshift(lib) if File.directory?(lib) && !$LOAD_PATH.include?(lib)
 require 'rubygems'
 require 'naplug'
 
-class MarkerFilePlugin < Nagios::Plugin
+class MarkerFilePlugin
+
+
 
   plugin do |plug|
     begin
-      delta = Time.now - File.mtime(plug.args[:marker_file])
+      delta = Time.now - File.mtime(plug[:marker_file])
       plug.output = 'marker file is %d seconds out of date' % [delta]
       case
         when delta < plug.args[:w_seconds]
