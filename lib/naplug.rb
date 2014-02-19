@@ -1,6 +1,4 @@
 require 'rubygems'
-require 'awesome_print'
-
 require 'naplug/plugin'
 
 module Naplug
@@ -11,7 +9,6 @@ module Naplug
 
     class DuplicatePlugin < StandardError; end
     class UnknownPlugin < StandardError; end
-    class OnlyOnePlugin < StandardError; end
 
     def plugin(tag = :main, &block)
       @plugins = Hash.new unless @plugins
@@ -27,7 +24,7 @@ module Naplug
       module_eval do
         # setup <tag> methods for quick access to plugins
         define_method "#{tag}".to_sym do
-          self.class.plugins[tag]
+          @plugins[tag]
         end
         # setup <tag>! methods to involke exec! on a given plugin; it is desitable for this to accept arguments (future feature?)
         define_method "#{tag}!".to_sym do
@@ -41,9 +38,12 @@ module Naplug
 
   module InstanceMethods
 
-    attr_reader :args
+    attr_reader :plugins
 
     def initialize(args = {})
+      @plugins = Hash.new
+      plugins!
+
       @_args = Hash.new
       args! args
     end
@@ -52,21 +52,17 @@ module Naplug
       @_args
     end
 
-    def args!(a)
-      @_args.merge! a
-      self.class.plugins.each do |tag,plugin|
+    def args!(args)
+      @_args.merge! args
+      @plugins.each do |tag,plugin|
         plugin_args = args.key?(tag) ? args[tag] : {}
-        shared_args = args.select { |t,a| not self.class.plugins.keys.include? t }
+        shared_args = args.select { |t,a| not @plugins.keys.include? t }
         plugin.args! shared_args.merge! plugin_args
       end
     end
 
     def to_s(tag = default_plugin.tag)
-      '%s: %s' % [plugins[tag].status,plugins[tag].output]
-    end
-
-    def plugins
-      self.class.plugins
+      '%s: %s' % [@plugins[tag].status,@plugins[tag].output]
     end
 
     def exec!(tag = default_plugin.tag)
@@ -76,7 +72,7 @@ module Naplug
     end
 
     def exec(tag = default_plugin.tag)
-      plugin = plugins[tag]
+      plugin = @plugins[tag]
       begin
         if plugin.has_plugs?
           plugin.plugs.each_value { |plug| instance_exec plug, &plug.block }
@@ -91,14 +87,20 @@ module Naplug
     end
 
     def eval(tag = default_plugin.tag)
-      plugins[tag].eval
+      @plugins[tag].eval
     end
 
     private
 
+    def plugins!
+      self.class.plugins.each do |tag,plugin|
+        @plugins[tag] = Plugin.new tag, plugin.block
+      end
+    end
+
     def default_plugin
-      return plugins[:main] if plugins.key? :main
-      return plugins[plugins.keys[0]] if plugins.size == 1
+      return @plugins[:main] if @plugins.key? :main
+      return @plugins[@plugins.keys[0]] if @plugins.size == 1
       nil
     end
 
@@ -111,7 +113,7 @@ module Naplug
 
     def exit(tag = default_plugin.tag)
       print "%s\n" % [to_s(tag)]
-      Kernel::exit plugins[tag].status.to_i
+      Kernel::exit @plugins[tag].status.to_i
     end
 
   end

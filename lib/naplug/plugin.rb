@@ -16,26 +16,11 @@ module Naplug
 
       @_args = Hash.new
       @_status = Status.new
-      @_output = ''
+      @_output = 'uninitialized plugin'
       @_payload = nil
 
-      begin
-        instance_eval &block if block
-      rescue => e
-        # do nothing
-      end
+      begin; instance_eval &block ; rescue => e ; end
 
-      @_status.unknown!
-      @_output = 'uninitialized plugin'
-
-    end
-
-    def plug(tag, &block)
-      raise DuplicatePlugin, "duplicate definition of #{tag}" if @plugs.key? tag
-      @plugs[tag] = Plugin.new tag, block
-      self.define_singleton_method tag do
-        @plugs[tag]
-      end
     end
 
     def has_plugs?
@@ -90,9 +75,19 @@ module Naplug
     def eval
       unless @plugs.empty?
         wcu_plugs = @plugs.values.select { |plug| plug.status.not_ok? }
-        plugs = wcu_plugs.empty? ? @plugs : wcu_plugs
+        plugs = wcu_plugs.empty? ? @plugs.values : wcu_plugs
         @_output = plugs.map { |plug| "[#{plug.tag}@#{plug.status.to_l}: #{plug.output}]" }.join(' ')
         @_status = plugs.map { |plug| plug.status }.max
+      end
+    end
+
+    private
+
+    def plug(tag, &block)
+      raise DuplicatePlugin, "duplicate definition of #{tag}" if @plugs.key? tag
+      @plugs[tag] = Plugin.new tag, block
+      self.define_singleton_method tag do
+        @plugs[tag]
       end
     end
 
