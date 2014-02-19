@@ -1,18 +1,30 @@
 # Naplug
 
-*Naplug* is a [Nagios plugin](http://nagiosplug.sourceforge.net/developer-guidelines.html) library for Ruby focused on plugin internals: organization, status, performance data, output and exit code handling. It does not implement any functionality related to option and argument parsing, as there are a great deal of great resources to do so already. It aims to ease the task of writing Nagios plugins in Ruby and _handling the paperwork_, allowing the plugin developer to concentrate on the test logic of the plugin. It is largely modeled after the very excellent [Worlkflow](https://github.com/geekq/workflow) library.
+*Naplug* is a [Nagios plugin](http://nagiosplug.sourceforge.net/developer-guidelines.html) library for Ruby focused on plugin internals: organization, status, performance data, output and exit code handling. It does not implement any functionality related to option and argument parsing, as there are fine tools already available for this purpose. It aims to ease the task of writing Nagios plugins in Ruby and _handling the paperwork_, allowing the plugin developer to concentrate on the test logic of the plugin. Its internal design is largely modeled after the very excellent [Worlkflow](https://github.com/geekq/workflow) library.
 
-*Naplug* introduces the concept of a *plug*, which is a useful abstraction to break up significant tasks that the plugin as a whole must perform in order to determine the state of a service or host. Plugs, like plugins, have status and output, which are used to determine the overall status of the plugin and build the output depending on said status.
+*Naplug* introduces the concept of a *plug*, which is a useful abstraction to break up significant tasks that the plugin as a whole must perform in order to determine the state of a service or host. Plugs, like plugins, have status and output, which is used to determine the overall status of the plugin and build the output depending on said status.
 
 While *Naplug* handles the nitty-gritty of Nagios plugins, it is important to have familiarity with the [Nagios Plugin Developer Guidelines](http://nagiosplug.sourceforge.net/developer-guidelines.html).
 
-At its core, a Nagios plugin is a program that evaluates test conditions and yields back status and output.  These must be returned correctly formatted so that Nagios can interpret them correctly.
+At its core, a Nagios plugin is a program that evaluates test conditions and yields back status and output. 
 
 ## Overview
 
-Naplug approaches Nagios plugins as Ruby classes. A very simple plugin that always returns an OK status:
+Naplug approaches Nagios plugins as Ruby classes. To use *Naplug*, install the gem and:
 
+    require 'rubygems'
     require 'naplug'
+    
+    class MyPlugin
+      include Naplug
+      plugin do |p|
+        ...
+      end  
+    end
+    
+All examples will omit the `require`s for readability.
+ 
+A very simple plugin that always returns an OK status:
     
     class AlwaysOkPlugin
 
@@ -26,7 +38,7 @@ Naplug approaches Nagios plugins as Ruby classes. A very simple plugin that alwa
 
     AlwaysOkPlugin.new.exec!
 
-In the above example, a new class is defined (the class name is arbitrary), and within this class, a plugin is created, which performs some work to set the status and output of the plugin. Once the class is defined, a new instance of the plugin is created and executed. The `exec!` method runs the plugin, evaluates status, formats and produces correctly formatted output, and exits with the appropriate exit code:
+In the above example, a new class is defined (the class name is arbitrary), and within this class, a plugin is created, which performs some work to set the status and output of the plugin. Once the class is defined, a new instance of the plugin is created and executed. The `exec!` method runs the plugin, evaluates status, produces correctly formatted output, and exits with the appropriate exit code:
 
     naplug@plugin:~: alwaysok 
     OK: Optimism level: 100%
@@ -79,7 +91,7 @@ As seen in the examples above, *plugins* are defined inside a new class with `pl
 
 ### Tags
 
-Plugins can be tagged, which is useful in cases where multiple plugins are defined in a single class. This may be necessary in cases where multiple implementations of tests are required. A plugin's tag defaults to `main` when not specified.
+Plugins can be tagged, and tags *must* be unique within a class. Tags are used to identify a plugin, which is useful in cases where multiple plugins are defined in a single class, which may be necessary in cases where multiple implementations of tests are required. A plugin's tag defaults to `main` when not specified.
 
 Plugins can be accessed through _tag_ methods, and executed through _tag!_ methods.
 
@@ -103,7 +115,8 @@ Plugins can be accessed through _tag_ methods, and executed through _tag!_ metho
       else plugin.bar!
     end
     
-When defining multiple plugins, it is not possible to use the `exec!` method, since only one plugin can be executed.
+When defining multiple plugins, invoking `exec!` will execute that `main` plugin. When defining a single plugin, `exec!' will execute it regardess of tag.
+
 
 ### Arguments
 
@@ -178,45 +191,6 @@ Whenever Naplug in included in a class, several methods are available:
 * `[]` and `[]=`
 
 Overriding these will likely cause *Naplug* to misbehave, to say the least.
-
-### Helpers
-
-Plugins sometimes need helpers, and this can be accomplished by defining `private` methods in the class, which can then be used by the plugin. `Naplug` does not enforce the privacy of the said helpers, but it's good form to make them so.
-
-    require 'naplug'
-
-    class MarkerFilePlusPlusPlugin
-
-      include Naplug
-
-      plugin do |p|
-        delta, size = file_delta_and_size p[:marker_file]
-        case
-          when (delta < p[:w_secs] and size > p[:c_size])
-            p.status.ok!
-            p.output! "marker file %s is up to date and not empty" % [p[:marker_file]]
-          when ((p[:w_secs]..p[:c_secs]).include?(delta) and size > p[:c_size])
-            p.status.warning!
-            p.output! "marker file is %d seconds out of date" % [delta]
-          when (delta >= p[:c_secs] or size == p[:c_size])
-            p.status.critical!
-            p.output! "marker file is %d seconds out of date or empty" % [delta]
-          else
-            p.outout! "marker file is in an inconsistent state"
-        end
-      end
-
-      private
-
-      def file_delta_and_size(file)
-        fs = File.stat file
-        return Time.now - fs.mtime,fs.size
-      end
-    
-    end
-    
-    plugin = MarkerFilePlusPlusPlugin.new :marker_file => '/tmp/my_marker', :c_secs => 120, :w_secs => 60, :c_size => 0
-    plugin.exec!
      
 ### Status
 
@@ -310,7 +284,7 @@ Take a service for which we wish to monitor three conditions:
 
 Each of these tasks can be a plug, and Naplug will take care of aggregating the statuses to yield a plugin status (worst always wins).
 
-    require 'sys/proctable
+    require 'sys/proctable'
     require 'naplug'
     
     class MultiPlugServicePlugin
@@ -320,7 +294,7 @@ Each of these tasks can be a plug, and Naplug will take care of aggregating the 
         plugin do |p|
         
           plug :proc_count do |p1|
-            pids = process_grokker p1[:name]
+            pids = Sys::ProcTable.ps.each do |ps|...
             case pids.size
               when 1
                 p1.status.ok
@@ -359,24 +333,11 @@ Each of these tasks can be a plug, and Naplug will take care of aggregating the 
              end          
           end
           
-        end
-        
-        def process_grokker(p)
-          ...
-          return pids
-        end
-        
+        end        
     end
     
     plugin = MultiPlugServicePlugin.new :name => 'foobard'
     plugin[:log_mtime] = { :log_file => '/var/log/foobard.log' }
     plugin[:queue_depth] = { :dir => '/var/spool/foobard' }
     plugin.exec!
-    
-    
 
- 
-                                 
-
-      
-  

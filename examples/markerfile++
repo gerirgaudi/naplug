@@ -10,7 +10,7 @@ class MarkerFilePlusPlusPlugin
 
   include Naplug
 
-  plugin do |p|
+  plugin :mkf do |p|
     delta, size = file_mtime_and_size p[:marker_file]
     case
       when (delta < p[:w_seconds] and size > p[:c_size])
@@ -36,5 +36,5 @@ class MarkerFilePlusPlusPlugin
 
 end
 
-#plugin = MarkerFilePlusPlusPlugin.new :marker_file => '/tmp/my_marker', :c_seconds => 120, :w_seconds => 60, :c_size => 0
-#plugin.exec!
+plugin = MarkerFilePlusPlusPlugin.new :marker_file => '/tmp/my_marker', :c_seconds => 120, :w_seconds => 60, :c_size => 0
+plugin.exec!

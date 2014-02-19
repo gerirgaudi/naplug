@@ -9,9 +9,8 @@ module Naplug
     class DuplicatePlugin < StandardError; end
     class UnknownPlugin < StandardError; end
 
-    def initialize(tag, klass, block)
+    def initialize(tag, block)
       @tag = tag
-      @klass = klass
       @block = block
       @plugs = Hash.new
 
@@ -33,10 +32,14 @@ module Naplug
 
     def plug(tag, &block)
       raise DuplicatePlugin, "duplicate definition of #{tag}" if @plugs.key? tag
-      @plugs[tag] = Plugin.new tag, @klass, block
+      @plugs[tag] = Plugin.new tag, block
       self.define_singleton_method tag do
         @plugs[tag]
       end
+    end
+
+    def has_plugs?
+      @plugs.empty? ? false : true
     end
 
     def status
@@ -76,32 +79,8 @@ module Naplug
       @_args[k] = v
     end
 
-    def exec!(*args)
-      exec
-      eval
-      print "%s\n" % [to_s]
-      exit @_status.to_i
-    end
-
     def to_s
       '%s: %s' % [status,output]
-    end
-
-    def exec
-      begin
-        if @plugs.empty?
-          instance_eval &@block
-        else
-          @plugs.each_value do |plug|
-            instance_exec plug, &plug.block
-          end
-        end
-      rescue => e         # catch any and all exceptions: plugins are a very restrictive environment
-        status.unknown!
-        output! e.message
-        payload! e
-      end
-
     end
 
     def eval
@@ -119,13 +98,6 @@ module Naplug
         shared_args = args.select { |t,a| not @plugs.keys.include? t }
         plug.args! shared_args.merge! plug_args
       end
-    end
-
-    def method_missing(method,*args,&block)
-      puts @klass
-      @klass.send method
-      puts method
-      exit 0
     end
 
   end
