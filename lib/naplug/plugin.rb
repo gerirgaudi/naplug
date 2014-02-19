@@ -14,7 +14,7 @@ module Naplug
       @block = block
       @plugs = Hash.new
 
-      @_args = {}
+      @_args = Hash.new
       @_status = Status.new
       @_output = ''
       @_payload = nil
@@ -67,8 +67,12 @@ module Naplug
     end
 
     def args!(a)
-      @_args = a
-      process_arguments(a)
+      @_args.merge! a
+      @plugs.each do |tag,plug|
+        plug_args = args.key?(tag) ? args[tag] : {}
+        shared_args = args.select { |t,a| not @plugs.keys.include? t }
+        plug.args! shared_args.merge! plug_args
+      end
     end
 
     def [](k)
@@ -89,14 +93,6 @@ module Naplug
         plugs = wcu_plugs.empty? ? @plugs : wcu_plugs
         @_output = plugs.map { |plug| "[#{plug.tag}@#{plug.status.to_l}: #{plug.output}]" }.join(' ')
         @_status = plugs.map { |plug| plug.status }.max
-      end
-    end
-
-    def process_arguments(args)
-      @plugs.each do |tag,plug|
-        plug_args = args.key?(tag) ? args[tag] : {}
-        shared_args = args.select { |t,a| not @plugs.keys.include? t }
-        plug.args! shared_args.merge! plug_args
       end
     end
 

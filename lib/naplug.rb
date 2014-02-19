@@ -44,6 +44,7 @@ module Naplug
     attr_reader :args
 
     def initialize(args = {})
+      @_args = Hash.new
       args! args
     end
 
@@ -52,8 +53,12 @@ module Naplug
     end
 
     def args!(a)
-      @_args = a
-      process_arguments(a)
+      @_args.merge! a
+      self.class.plugins.each do |tag,plugin|
+        plugin_args = args.key?(tag) ? args[tag] : {}
+        shared_args = args.select { |t,a| not self.class.plugins.keys.include? t }
+        plugin.args! shared_args.merge! plugin_args
+      end
     end
 
     def to_s(tag = default_plugin.tag)
@@ -90,14 +95,6 @@ module Naplug
     end
 
     private
-
-    def process_arguments(args)
-      self.class.plugins.each do |tag,plugin|
-        plugin_args = args.key?(tag) ? args[tag] : {}
-        shared_args = args.select { |t,a| not self.class.plugins.keys.include? t }
-        plugin.args! shared_args.merge! plugin_args
-      end
-    end
 
     def default_plugin
       return plugins[:main] if plugins.key? :main
