@@ -329,7 +329,7 @@ Status is a special object that represent the status of a plugin for each of the
     puts "Working with a status:"
     status = Naplug::Status.new
     puts "  status #{status} has exit code #{status.to_i}"
-    status.ok
+    status.ok!
     puts "  status #{status} has exit code #{status.to_i}"
     
     puts "Comparing statuses:"
