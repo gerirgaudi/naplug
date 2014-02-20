@@ -73,16 +73,24 @@ module Naplug
 
     def exec(tag = default_plugin.tag)
       plugin = @plugins[tag]
-      begin
-        if plugin.has_plugs?
-          plugin.plugs.each_value { |plug| instance_exec plug, &plug.block }
-        else
-          instance_exec plugin, &plugin.block
+      if plugin.has_plugs?
+        plugin.plugs.each_value do |plug|
+          begin
+            instance_exec plug, &plug.block
+          rescue => e
+            plug.status.unknown!
+            plug.output! e.message
+            plug.payload! e
+          end
         end
-      rescue => e         # catch any and all exceptions: plugins are a very restrictive environment
-        plugin.status.unknown!
-        plugin.output! e.message
-        plugin.payload! e
+      else
+        begin
+          instance_exec plugin, &plugin.block
+        rescue => e
+          plugin.status.unknown!
+          plugin.output! e.message
+          plugin.payload! e
+        end
       end
     end
 

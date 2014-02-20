@@ -51,8 +51,8 @@ module Naplug
       @_args
     end
 
-    def args!(a)
-      @_args.merge! a
+    def args!(args)
+      @_args.merge! args
       @plugs.each do |tag,plug|
         plug_args = args.key?(tag) ? args[tag] : {}
         shared_args = args.select { |t,a| not @plugs.keys.include? t }
