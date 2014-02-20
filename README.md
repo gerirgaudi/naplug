@@ -1,6 +1,6 @@
 # Naplug
 
-*Naplug* is a [Nagios plugin](http://nagiosplug.sourceforge.net/developer-guidelines.html) library for Ruby focused on plugin internals: organization, status, performance data, output and exit code handling. It does not implement any functionality related to option and argument parsing, as there are fine tools already available for this purpose. It aims to ease the task of writing Nagios plugins in Ruby and _handling the paperwork_, allowing the plugin developer to concentrate on the test logic of the plugin. Its internal design is largely modeled after the very excellent [Worlkflow](https://github.com/geekq/workflow) library.
+*Naplug* is a [Nagios plugin](http://nagiosplug.sourceforge.net/developer-guidelines.html) library for Ruby focused on plugin internals: organization, status, performance data (coming soon!), output and exit code handling. It does not implement any functionality related to option and argument parsing, as there are fine tools already available for this purpose. It aims to ease the task of writing Nagios plugins in Ruby and _handling the paperwork_, allowing the plugin developer to concentrate on the test logic of the plugin. Its internal design is largely modeled after the very excellent [Worlkflow](https://github.com/geekq/workflow) library.
 
 *Naplug* introduces the concept of a *plug*, which is a useful abstraction to break up significant tasks that the plugin as a whole must perform in order to determine the state of a service or host. Plugs, like plugins, have status and output, which is used to determine the overall status of the plugin and build the output depending on said status.
 
@@ -46,8 +46,6 @@ In the above example, a new class is defined (the class name is arbitrary), and 
     0 
 
 A less optimistic example, this time with arguments:
-
-    require 'naplug'
 
     class AlmostAlwaysOkPlugin
 
@@ -115,7 +113,7 @@ Plugins can be accessed through _tag_ methods, and executed through _tag!_ metho
       else plugin.bar!
     end
     
-When defining multiple plugins, invoking `exec!` will execute that `main` plugin. When defining a single plugin, `exec!' will execute it regardess of tag.
+When defining multiple plugins, invoking `exec!` will execute the `main` plugin (if defined; otherwise, `exec!` is unable to decide which one to execute). When defining a single plugin, `exec!` will execute it regardess of tag.
 
 
 ### Arguments
@@ -123,8 +121,6 @@ When defining multiple plugins, invoking `exec!` will execute that `main` plugin
 A plugin can accept [mostly] arbitrary arguments, which are entirely optional and are available through the *[]* notation. *Naplug* (again, mostly) attaches no special meaning to them, i.e., they can be used in any way they need to be used.
     
 A more realistic example that checks the staleness of a marker file:
-
-    require 'naplug'
 
     class MarkerFilePlugin
 
@@ -146,8 +142,6 @@ A more realistic example that checks the staleness of a marker file:
 
 The above example with some added flexibility and robustness:
 
-    require 'naplug'
-    
     class MarkerFilePlusPlugin
     
       include Naplug
@@ -159,7 +153,7 @@ The above example with some added flexibility and robustness:
           case
             when delta < p[:w_seconds]
               p.status.ok!
-              p.output! 'marker file %s is up to date' % [args[:marker_file]]
+              p.output! 'marker file %s is up to date' % [p[:marker_file]]
             when (p[:w_seconds]..p[:c_seconds]).include?(delta)
               p.status.warning!
             when delta >= p[:c_seconds]
@@ -179,65 +173,27 @@ The above example with some added flexibility and robustness:
 
 There are some worthwhile observations about the above example. A missing marker file prevents determining the stalesness of said file (infinite staleness?), resulting in an `UNKNOWN` status. Catching this is not strictly necessary, since plugins initially have a `UNKNOWN` status. There are however instances where it may be useful to specifically do this. Note that the entire exception object is available through the `payload`.
 
-## Naplug Methods
+Arguments can also be specified via the `args!` method:
 
-Whenever Naplug in included in a class, several methods are available:
-
-* `status`
-* `output`
-* `payload`
-* `performance`
-* `exec!`, `exec` and `eval`
-* `[]` and `[]=`
-
-Overriding these will likely cause *Naplug* to misbehave, to say the least.
-     
-### Status
-
-Status is a special object that represent the status of a plugin for each of the defined state in the [Nagios Plugin Guidelines](http://nagiosplug.sourceforge.net/developer-guidelines.html): `OK`, `WARNING`, `CRITICAL` and `UNKNOWN`. Each of these states is itself an instance method which sets the state, and you can obtain the string and numeric representation through the usual methods `to_s` and `to_i`. The initial (and default) status of a `Status` object is `UNKNOWN`. Statuses are comparable in that larger statuses represent worse states, a feature that will come handy shortly.
-
-    require 'naplug/status'
-
-    puts "All statuses:"
-    Naplug::Status.states.each do |state|
-      status = Naplug::Status.new state
-      puts "  status #{status} has exit code #{status.to_i}"
-    end
-
-    puts "Working with a status:"
-    status = Naplug::Status.new
-    puts "  status #{status} has exit code #{status.to_i}"
-    status.ok
-    puts "  status #{status} has exit code #{status.to_i}"
+    class ArgumentsPlugin
     
-    puts "Comparing statuses:"
-    status1 = Naplug::Status.new :warning
-    if status < status1
-      puts "  status [#{status}] < status1 [#{status1}] is true"
+      include Naplug
+      
+      plugin do |p|
+        ...
+      end
+      
     end
-
-which produces
-
-    naplug@plugin:~: status 
-    All statuses:
-      status OK has exit code 0
-      status WARNING has exit code 1
-      status CRITICAL has exit code 2
-      status UNKNOWN has exit code 3
-    Working with a status:
-      status UNKNOWN has exit code 3 after initialization
-      status OK has exit code 0 after status.ok
-    Comparing statuses:
-      status [OK] < status1 [WARNING] is true
+    
+    plugin = ArgumentsPlugin.new :instance => 1
+    plugin.args! :instance => 2
 
 ### Plugs
- 
-Up until now, *Naplug* has essentially provided *syntactic sugar* to define and use plugins, along with some convenience methods to represent status and produce output. But plugins sometimes need to perform a number of possibly independent tasks to reach a final, _aggregated_ status. In *Naplug*, these tasks are referred to as *plugs* are identified by *tags*. Plugs are, in some respects, much like plugins: they have status and output. They're unlike plugins in that they are scoped to a plugin.
 
-When a plugin in created, we can define *plugs* inside the plugin through the `plug` call. A *plug* is created with an implicit _tag_ `:main` if no tah is provided. Tags can be explicitly defined, which is handy in order to pass them the right set of arguments to the right plug:
+Up until now, *Naplug* has essentially provided *syntactic sugar* to define and use plugins, along with some convenience methods to represent status and produce output. But plugins sometimes need to perform a number of possibly independent tasks to reach a final, _aggregated_ status. In *Naplug*, these tasks are referred to as *plugs*. They are essentially plugins, behave like plugins, but are scoped to a plugin.
 
-    require 'naplug'
-    
+When a plugin in created, we can define *plugs* inside the plugin through `plug` call. Like plugins, the can be tagged.
+
     class PlugPlugin
     
       include Naplug
@@ -257,15 +213,15 @@ When a plugin in created, we can define *plugs* inside the plugin through the `p
 
 #### Arguments
 
-Earlier it was noted that "a plugin can accept [mostly] arbitrary arguments" and that "*Naplug* (again, mostly) attaches no special meaning to them". Plugs is where "mostly" comes into being. Plugs are tagged, *Naplug* uses these tags to route arguments to the appropriate plug.
+With the introduction of plugs, arguments do become more structured, as arguments keys are matched to plugin and plug tags to route them appropriately.
 
     plugin = PlugPlugin.new(:plug1 => { :critical => 120, :warning => 60 },
                             :plug2 => { :ok => 0, :warning => 5, :critical => 10 })
 
-What if we need shared arguments? Any arguments keyed bby anything other than a plug tag are considered shared arguments and passed on to all plugs.
+Any keys not matching plugin (and plug) tags are considered to be shared:
 
     plugin = PlugPlugin.new(:file => '/tmp/file',
-	                          :plug1 => { :critical => 120, :warning => 60 }, 
+	                        :plug1 => { :critical => 120, :warning => 60 }, 
                             :plug2 => { :ok => 0, :warning => 5, :critical => 10 })
                                   
 Tagged arguments have preference over shared ones.
@@ -273,7 +229,7 @@ Tagged arguments have preference over shared ones.
     plugin = PlugPlugin.new(:file => '/tmp/file', 
                             :plug1 => { :file => '/var/tmp/file', :critical => 120 },
                             :plug2 => { :ok => 0, :warning => 5, :critical => 10 })
-
+                            
 #### A Plugged Plugin Example
 
 Take a service for which we wish to monitor three conditions:
@@ -341,3 +297,58 @@ Each of these tasks can be a plug, and Naplug will take care of aggregating the 
     plugin[:queue_depth] = { :dir => '/var/spool/foobard' }
     plugin.exec!
 
+## Naplug Methods
+
+Whenever Naplug in included in a class, several methods are available:
+
+* `args` and `args!` to retrieve and set arguments
+* `exec!`, `exec` and `eval` to exec-to-exit, exec and evaluate
+
+In addition to the above methods, plugins and plugs provide the following ones:
+
+* `has_plugs?`, which evaluates to true if a plugin has plugs
+* `[]` and `[]=` to get and set specific arguments
+* `status` to get a plugin or plug status
+* `output` and `output!` to get and set plugin and plug output
+* `payload` and `payload!` to get and set plugin and plug payload (used to carry exceptions)
+
+Overriding these will likely cause *Naplug* to misbehave, to say the least.
+     
+### Status
+
+Status is a special object that represent the status of a plugin for each of the defined states in the [Nagios Plugin Guidelines](http://nagiosplug.sourceforge.net/developer-guidelines.html): `OK`, `WARNING`, `CRITICAL` and `UNKNOWN`. Each of these states is itself an instance method which sets the state, and you can obtain the string and numeric representation through the usual methods `to_s` and `to_i`. The initial (and default) status of a `Status` object is `UNKNOWN`. Statuses are comparable in that larger statuses represent worse states, a feature that will come handy shortly.
+
+    require 'naplug/status'
+
+    puts "All statuses:"
+    Naplug::Status.states.each do |state|
+      status = Naplug::Status.new state
+      puts "  status #{status} has exit code #{status.to_i}"
+    end
+
+    puts "Working with a status:"
+    status = Naplug::Status.new
+    puts "  status #{status} has exit code #{status.to_i}"
+    status.ok
+    puts "  status #{status} has exit code #{status.to_i}"
+    
+    puts "Comparing statuses:"
+    status1 = Naplug::Status.new :warning
+    if status < status1
+      puts "  status [#{status}] < status1 [#{status1}] is true"
+    end
+
+which produces
+
+    naplug@plugin:~: status 
+    All statuses:
+      status OK has exit code 0
+      status WARNING has exit code 1
+      status CRITICAL has exit code 2
+      status UNKNOWN has exit code 3
+    Working with a status:
+      status UNKNOWN has exit code 3 after initialization
+      status OK has exit code 0 after status.ok
+    Comparing statuses:
+      status [OK] < status1 [WARNING] is true
+ 
