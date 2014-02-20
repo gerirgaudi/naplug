@@ -6,16 +6,20 @@ $LOAD_PATH.unshift(lib) if File.directory?(lib) && !$LOAD_PATH.include?(lib)
 require 'rubygems'
 require 'naplug'
 
-class MarkerFilePlugin < Nagios::Plugin
+class MarkerFilePlugin
 
-  plugin do |plug|
-    if Time.now - File.mtime(plug.args[:marker_file]) > plug.args[:critical]
-      plug.status = :critical
-      plug.output = 'marker mtime greater than 60 seconds'
+  include Naplug
+
+  plugin do |p|
+
+    if Time.now - File.mtime(p[:marker_file]) > p[:critical]
+      p.status.critical!
+      p.output! "marker file #{p[:marker_file]} mtime greater than #{p[:critical]} seconds"
     else
-      plug.status = :ok
-      plug.output = 'marker up to date'
+      p.status.ok!
+      p.output! "marker #{p[:marker_file]} is up to date"
     end
+
   end
 end
 

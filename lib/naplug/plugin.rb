@@ -1,114 +1,95 @@
-require 'ostruct'
-require 'logger'
-require 'naplug/pluginmixin'
-require 'awesome_print'
+require 'naplug/status'
 
-module Nagios
+module Naplug
 
   class Plugin
 
-    @plugins = {}
-    @logger = Logger.new(STDERR)
-    @logger.level = Logger::WARN
-    class << self; attr_accessor :plugins, :logger end
-    class DuplicatePlug < StandardError; end
-    class UnknownPlug < StandardError; end
+    attr_reader :name, :block, :plugs, :tag
 
-    def self.plugin(tag = nil,&block)
-      tag = tag.nil? ? :main : tag.to_sym
-      raise DuplicatePlug, "duplicate definition of #{tag} plugin" if self.plugins.has_key?(tag)
-      self.plugins[tag] = Plug.new tag, block
+    class DuplicatePlugin < StandardError; end
+    class UnknownPlugin < StandardError; end
+
+    def initialize(tag, block)
+      @tag = tag
+      @block = block
+      @plugs = Hash.new
+
+      @_args = Hash.new
+      @_status = Status.new
+      @_output = 'uninitialized plugin'
+      @_payload = nil
+
+      begin; instance_eval &block ; rescue => e ; end
+
     end
 
-    def self.inherited(subclass)
-      subclass.plugins = {}
-      subclass.logger = self.logger
+    def has_plugs?
+      @plugs.empty? ? false : true
     end
 
-    include PluginMixin
-
-    attr_reader :plugins, :logger
-
-    def initialize(args = {}, options = {})
-      @plugins = self.class.plugins
-      @logger = options[:log].nil? ? self.class.logger : options[:log]
-      @status = Status.new :unknown
-      @output = 'uninitialized plugin'
-      @payload = nil
-      process_args(args)
+    def status
+      @_status
     end
 
-    def exec
-      @plugins.each_value do |plug|
-        @logger.debug "exec #{plug.tag}"
-        instance_exec plug, &plug.block
+    def output
+      @_output
+    end
+
+    def output!(o)
+      @_output = o
+    end
+
+    def payload
+      @_payload
+    end
+
+    def payload!(p)
+      @_payload = p
+    end
+
+    def args
+      @_args
+    end
+
+    def args!(a)
+      @_args.merge! a
+      @plugs.each do |tag,plug|
+        plug_args = args.key?(tag) ? args[tag] : {}
+        shared_args = args.select { |t,a| not @plugs.keys.include? t }
+        plug.args! shared_args.merge! plug_args
       end
+    end
+
+    def [](k)
+      @_args[k]
+    end
+
+    def []=(k,v)
+      @_args[k] = v
+    end
+
+    def to_s
+      '%s: %s' % [status,output]
     end
 
     def eval
-      status = Status.new :ok
-      output = 'everything ok'
-
-      @plugins.each_value do |plug|
-        if plug.status > status
-          output = plug.output
-          status = plug.status
-        elsif plug.status == status
-          output << "; #{plug.output}" unless plug.output.nil?
-        end
+      unless @plugs.empty?
+        wcu_plugs = @plugs.values.select { |plug| plug.status.not_ok? }
+        plugs = wcu_plugs.empty? ? @plugs.values : wcu_plugs
+        @_output = plugs.map { |plug| "[#{plug.tag}@#{plug.status.to_l}: #{plug.output}]" }.join(' ')
+        @_status = plugs.map { |plug| plug.status }.max
       end
-
-      @status = status
-      @output = output
-    end
-
-    def exec!
-      exec
-      eval
-      print "%s\n" % [single_line_output]
-      exit exit_code
-    end
-
-    def status(t = nil)
-      t.nil? ? @status : @plugins[tag(t)].status
-    end
-
-    def output(t = nil)
-      t.nil? ? @status : @plugins[tag(t)].output
-    end
-
-    def payload(t = nil)
-      t.nil? ? @status : @plugins[tag(t)].payload
-    end
-
-    def single_line_output(t = nil)
-      '%s: %s' % [@status.to_s,@output]
-    end
-
-    def exit_code(t = nil)
-      @status.to_i
-    end
-
-    def tags
-      @plugins.keys
-    end
-
-    def plugin(t)
-      raise UnknownPlug, "unknown plug #{tag(t)}" unless tags.include?(tag(t))
-      @plugins[tag(t)]
     end
 
     private
 
-    def tag(t)
-      t.nil? ? :main : t.to_sym
-    end
-
-    def process_args(args,mode = nil)
-      @plugins.each do |t,p|
-        p.args = args.select { |k,v| @plugins[k].nil? }
-        p.args.merge!(args[t]) unless args[t].nil?
+    def plug(tag, &block)
+      raise DuplicatePlugin, "duplicate definition of #{tag}" if @plugs.key? tag
+      @plugs[tag] = Plugin.new tag, block
+      self.define_singleton_method tag do
+        @plugs[tag]
       end
     end
 
-end end
+  end
+end

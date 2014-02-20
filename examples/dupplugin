@@ -6,16 +6,18 @@ $LOAD_PATH.unshift(lib) if File.directory?(lib) && !$LOAD_PATH.include?(lib)
 require 'rubygems'
 require 'naplug'
 
-class DupPlugin < Nagios::Plugin
+class DupPlugin
 
-  plugin do |plug|
-    plug.status = :ok
-    plug.output = 'not really; will fail'
+  include Naplug
+
+  plugin do |p|
+    p.status.ok!
+    p.output! 'not really; will fail'
   end
 
-  plugin do |plug|
-    plug.status = :ok
-    plug.output = 'not really; will fail'
+  plugin do |p|
+    p.status.ok!
+    p.output! 'not really; will fail'
   end
 end
 

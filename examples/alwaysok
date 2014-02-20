@@ -1,0 +1,30 @@
+#!/usr/bin/env ruby
+
+lib = File.expand_path(File.dirname(__FILE__) + '/../lib')
+$LOAD_PATH.unshift(lib) if File.directory?(lib) && !$LOAD_PATH.include?(lib)
+
+require 'rubygems'
+require 'naplug'
+
+module Naplug
+
+  module Examples
+
+    class AlwaysOkPlugin
+
+      include Naplug
+
+      plugin do |p|
+
+        p.status.ok!
+        p.output! 'Optimism level: 100%'
+
+      end
+
+    end
+
+  end
+
+end
+
+Naplug::Examples::AlwaysOkPlugin.new.exec!

@@ -1,0 +1,38 @@
+#!/usr/bin/env ruby
+
+lib = File.expand_path(File.dirname(__FILE__) + '/../lib')
+$LOAD_PATH.unshift(lib) if File.directory?(lib) && !$LOAD_PATH.include?(lib)
+
+require 'rubygems'
+require 'naplug'
+
+module Naplug
+
+  module Examples
+
+    class AlmostAlwaysOkPlugin
+
+      include Naplug
+
+      plugin do |p|
+
+        p.output! "Optimism level: #{p[:optimism]}%"
+
+        case p[:optimism]
+          when 23..100 then p.status.ok!
+          when 6..22   then p.status.warning!
+          when 0..5    then p.status.critical!
+          else
+            p.output! 'utterly confused'
+        end
+
+      end
+
+    end
+
+  end
+
+end
+
+plugin = Naplug::Examples::AlmostAlwaysOkPlugin.new :optimism => Random.rand(100)
+plugin.exec!
