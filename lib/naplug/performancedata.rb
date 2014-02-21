@@ -10,9 +10,9 @@ module Naplug
 
     FIELDS = [:label, :value, :uom, :warn, :crit, :min, :max] # label=value[UOM];[warn];[crit];[min];[max]
 
-    def initialize(label,value,args = {})
+    def initialize(tag)
+      @tag = tag
       @data = Hash.new
-      push label, value, args
     end
 
     def to_s(label = nil)
@@ -22,11 +22,30 @@ module Naplug
       end.join(' ').strip
     end
 
-    def push(label,value,args = {})
+    def []=(label,value,args = {})
       raise ThatIsNoHash, 'hash of fields is not a hash' unless args.is_a? Hash
       args.keys.each { |field| raise InvalidField unless FIELDS.include? field }
       raise MissingLabel, 'missing label' unless label
       @data[label] = { :label => label, :value => value }.merge args
+    end
+    alias_method :store, :[]=
+
+    def [](label)
+      @data[label]
+    end
+    alias_method :fetch, :[]
+
+    def delete(label)
+      @data.delete(label)
+    end
+
+    def has_label?(label)
+      @data.has_key? label
+    end
+    alias_method :include?, :has_label?
+
+    def fields
+      FIELDS
     end
 
   end

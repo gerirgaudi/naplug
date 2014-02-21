@@ -12,17 +12,17 @@ class MultiPluginPlugin
 
   plugin :one do |p|
 
-    plug :p1 do |p1|
+    plugin :p1 do |p1|
       p1.status.ok!
       p1.output! "#{p.tag}:#{p1.tag} #{p[:instance]}"
     end
 
-    plug :p2 do |p2|
+    plugin :p2 do |p2|
       p2.status.ok!
       p2.output! "#{p.tag}:#{p2.tag} #{p[:instance]}"
     end
 
-    plug :p3 do |p3|
+    plugin :p3 do |p3|
       p3.status.ok!
       p3.output! "#{p.tag}:#{p3.tag} #{p[:instance]}"
     end

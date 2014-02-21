@@ -72,26 +72,7 @@ module Naplug
     end
 
     def exec(tag = default_plugin.tag)
-      plugin = @plugins[tag]
-      if plugin.has_plugs?
-        plugin.plugs.each_value do |plug|
-          begin
-            instance_exec plug, &plug.block
-          rescue => e
-            plug.status.unknown!
-            plug.output! e.message
-            plug.payload! e
-          end
-        end
-      else
-        begin
-          instance_exec plugin, &plugin.block
-        rescue => e
-          plugin.status.unknown!
-          plugin.output! e.message
-          plugin.payload! e
-        end
-      end
+      rexec @plugins[tag]
     end
 
     def eval(tag = default_plugin.tag)
@@ -99,6 +80,24 @@ module Naplug
     end
 
     private
+
+    def rexec(plugin)
+      if plugin.has_plugins?
+        plugin.plugins.each_value { |p| rexec p }
+      else
+        plexec plugin
+      end
+    end
+
+    def plexec(p)
+      begin
+        instance_exec p, &p.block
+      rescue => e
+        p.status.unknown!
+        p.output! e.message
+        p.payload! e
+      end
+    end
 
     def plugins!
       self.class.plugins.each do |tag,plugin|
@@ -114,8 +113,8 @@ module Naplug
 
     def perfdata(tag = default_plugin.tag)
       plugin = @plugins[tag]
-      if plugin.has_plugs?
-        plugin.plugs.values.map do |plug|
+      if plugin.has_plugins?
+        plugin.plugins.values.map do |plug|
           plug.perfdata
         end.join(' ')
       else

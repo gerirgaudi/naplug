@@ -12,17 +12,17 @@ class MultiPlugPlugin
 
   plugin do |p|
 
-    plug :p1 do |p1|
+    plugin :p1 do |p1|
       p1.status.critical!
       p1.output! "'c' argument is #{p1[:c]}"
     end
 
-    plug :p2 do |p2|
+    plugin :p2 do |p2|
       p2.status.critical!
       p2.output! "tis critical!"
     end
 
-    plug :p3 do |p3|
+    plugin :p3 do |p3|
       p3.status.warning!
       p3.output! "tis unknown!"
     end

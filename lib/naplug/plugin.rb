@@ -5,7 +5,7 @@ module Naplug
 
   class Plugin
 
-    attr_reader :name, :block, :plugs, :tag
+    attr_reader :name, :block, :plugins, :tag
 
     class DuplicatePlugin < StandardError; end
     class UnknownPlugin < StandardError; end
@@ -13,7 +13,7 @@ module Naplug
     def initialize(tag, block)
       @tag = tag
       @block = block
-      @plugs = Hash.new
+      @plugins = Hash.new
 
       @_args = Hash.new
       @_status = Status.new
@@ -25,8 +25,8 @@ module Naplug
 
     end
 
-    def has_plugs?
-      @plugs.empty? ? false : true
+    def has_plugins?
+      @plugins.empty? ? false : true
     end
 
     def status
@@ -46,12 +46,8 @@ module Naplug
     end
 
     def perfdata!(label,value,f = {})
-      if @_perfdata.nil?
-        @_perfdata = PerformanceData.new label, value, f
-      else
-        @_perfdata.push label, value, f
-      end
-
+      @_perfdata ||= PerformanceData.new @tag
+      @_perfdata.store label, value, f
     end
 
     def payload
@@ -68,9 +64,9 @@ module Naplug
 
     def args!(args)
       @_args.merge! args
-      @plugs.each do |tag,plug|
+      @plugins.each do |tag,plug|
         plug_args = args.key?(tag) ? args[tag] : {}
-        shared_args = args.select { |t,a| not @plugs.keys.include? t }
+        shared_args = args.select { |t,a| not @plugins.keys.include? t }
         plug.args! shared_args.merge! plug_args
       end
     end
@@ -88,21 +84,21 @@ module Naplug
     end
 
     def eval
-      unless @plugs.empty?
-        wcu_plugs = @plugs.values.select { |plug| plug.status.not_ok? }
-        plugs = wcu_plugs.empty? ? @plugs.values : wcu_plugs
-        @_output = plugs.map { |plug| "[#{plug.tag}@#{plug.status.to_y}: #{plug.output}]" }.join(' ')
-        @_status = plugs.map { |plug| plug.status }.max
+      unless @plugins.empty?
+        wcu_plugins = @plugins.values.select { |plug| plug.status.not_ok? }
+        plugins = wcu_plugins.empty? ? @plugins.values : wcu_plugins
+        @_output = plugins.map { |plug| "[#{plug.status.to_y}#{plug.tag} #{plug.output}]" }.join(' ')
+        @_status = plugins.map { |plug| plug.status }.max
       end
     end
 
     private
 
-    def plug(tag, &block)
-      raise DuplicatePlugin, "duplicate definition of #{tag}" if @plugs.key? tag
-      @plugs[tag] = Plugin.new tag, block
+    def plugin(tag, &block)
+      raise DuplicatePlugin, "duplicate definition of #{tag}" if @plugins.key? tag
+      @plugins[tag] = Plugin.new tag, block
       self.define_singleton_method tag do
-        @plugs[tag]
+        @plugins[tag]
       end
     end
 
