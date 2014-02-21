@@ -62,7 +62,7 @@ module Naplug
     end
 
     def to_s(tag = default_plugin.tag)
-      '%s: %s' % [@plugins[tag].status,@plugins[tag].output]
+      '%s: %s | %s' % [@plugins[tag].status,@plugins[tag].output,perfdata(tag).strip]
     end
 
     def exec!(tag = default_plugin.tag)
@@ -110,6 +110,17 @@ module Naplug
       return @plugins[:main] if @plugins.key? :main
       return @plugins[@plugins.keys[0]] if @plugins.size == 1
       nil
+    end
+
+    def perfdata(tag = default_plugin.tag)
+      plugin = @plugins[tag]
+      if plugin.has_plugs?
+        plugin.plugs.values.map do |plug|
+          plug.perfdata
+        end.join(' ')
+      else
+        plugin.perfdata
+      end
     end
 
     def method_missing(method, *args, &block)

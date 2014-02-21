@@ -1,4 +1,5 @@
 require 'naplug/status'
+require 'naplug/performancedata'
 
 module Naplug
 
@@ -18,6 +19,7 @@ module Naplug
       @_status = Status.new
       @_output = 'uninitialized plugin'
       @_payload = nil
+      @_perfdata = nil
 
       begin; instance_eval &block ; rescue => e ; end
 
@@ -37,6 +39,19 @@ module Naplug
 
     def output!(o)
       @_output = o
+    end
+
+    def perfdata
+      @_perfdata
+    end
+
+    def perfdata!(label,value,f = {})
+      if @_perfdata.nil?
+        @_perfdata = PerformanceData.new label, value, f
+      else
+        @_perfdata.push label, value, f
+      end
+
     end
 
     def payload
@@ -76,7 +91,7 @@ module Naplug
       unless @plugs.empty?
         wcu_plugs = @plugs.values.select { |plug| plug.status.not_ok? }
         plugs = wcu_plugs.empty? ? @plugs.values : wcu_plugs
-        @_output = plugs.map { |plug| "[#{plug.tag}@#{plug.status.to_l}: #{plug.output}]" }.join(' ')
+        @_output = plugs.map { |plug| "[#{plug.tag}@#{plug.status.to_y}: #{plug.output}]" }.join(' ')
         @_status = plugs.map { |plug| plug.status }.max
       end
     end
