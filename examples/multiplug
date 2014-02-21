@@ -14,7 +14,7 @@ class MultiPlugPlugin
 
     plugin :p1 do |p1|
       p1.status.critical!
-      p1.output! "'c' argument is #{p1[:c]}"
+      p1.output! "argument 'c' is #{p1[:c]}"
     end
 
     plugin :p2 do |p2|
@@ -24,7 +24,7 @@ class MultiPlugPlugin
 
     plugin :p3 do |p3|
       p3.status.warning!
-      p3.output! "tis unknown!"
+      p3.output! "tis warning!"
     end
   end
 

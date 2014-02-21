@@ -8,13 +8,13 @@ module Naplug
     attr_reader :name, :block, :plugins, :tag
 
     class DuplicatePlugin < StandardError; end
-    class UnknownPlugin < StandardError; end
 
     def initialize(tag, block)
       @tag = tag
       @block = block
       @plugins = Hash.new
 
+      @_args = Hash.new
       @_args = Hash.new
       @_status = Status.new
       @_output = 'uninitialized plugin'

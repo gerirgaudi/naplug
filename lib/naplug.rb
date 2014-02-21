@@ -3,17 +3,22 @@ require 'naplug/plugin'
 
 module Naplug
 
+  class Error < StandardError; end
+
   module ClassMethods
 
     attr_reader :plugins
 
     class DuplicatePlugin < StandardError; end
-    class UnknownPlugin < StandardError; end
 
     def plugin(tag = :main, &block)
       @plugins = Hash.new unless @plugins
       raise DuplicatePlugin, "duplicate definition of #{tag}" if @plugins.key? tag
       @plugins[tag] = create_plugin tag, block
+    end
+
+    def tags
+      self.plugins.keys
     end
 
     private
@@ -46,6 +51,8 @@ module Naplug
 
       @_args = Hash.new
       args! args
+
+      @_runinng = nil
     end
 
     def args
@@ -61,8 +68,10 @@ module Naplug
       end
     end
 
-    def to_s(tag = default_plugin.tag)
-      '%s: %s | %s' % [@plugins[tag].status,@plugins[tag].output,perfdata(tag).strip]
+    def to_str(tag = default_plugin.tag)
+      s_format = perfdata ? '%s: %s | %s' : '%s: %s'
+      s_array = perfdata ? [@plugins[tag].status,@plugins[tag].output,perfdata(tag).strip] : [@plugins[tag].status,@plugins[tag].output]
+      s_format % s_array
     end
 
     def exec!(tag = default_plugin.tag)
@@ -79,23 +88,41 @@ module Naplug
       @plugins[tag].eval
     end
 
+    def eject!(payload = nil)
+      o = case payload
+            when String then payload
+            when Exception then "#{payload.backtrace[1][/.+:\d+/]}: #{payload.message}"
+            else nil
+              caller[0][/.+:\d+/]
+          end
+      print "UNKNOWN: plugin eject! in %s\n" % [o]
+      Kernel::exit 3
+    end
+
     private
 
-    def rexec(plugin)
-      if plugin.has_plugins?
-        plugin.plugins.each_value { |p| rexec p }
+    def rexec(plug)
+      if plug.has_plugins?
+        plug.plugins.each_value { |p| rexec p }
       else
-        plexec plugin
+        plexec plug
       end
     end
 
     def plexec(p)
       begin
+        @_running = p.tag
         instance_exec p, &p.block
+        @_running = nil
+      rescue Naplug::Error => e
+          p.status.unknown!
+          p.output! "#{e.backtrace[1][/[^\/]+:\d+/]}: #{e.message}"
       rescue => e
         p.status.unknown!
         p.output! e.message
         p.payload! e
+      ensure
+        @_runinng = nil
       end
     end
 
@@ -116,22 +143,29 @@ module Naplug
       if plugin.has_plugins?
         plugin.plugins.values.map do |plug|
           plug.perfdata
-        end.join(' ')
+        end.join(' ').gsub(/^\s+$/,'').strip!
       else
         plugin.perfdata
       end
     end
 
-    def method_missing(method, *args, &block)
-      plugin = Plugin.new method, block
-      plugin.output! "undefined plugin #{method.to_s.chomp('!')}"
-      print "%s\n" % [plugin]
-      Kernel::exit plugin.status.to_i
+    def exit(tag = default_plugin.tag)
+      print "%s\n" % [to_str(tag)]
+      Kernel::exit @plugins[tag].status.to_i
     end
 
-    def exit(tag = default_plugin.tag)
-      print "%s\n" % [to_s(tag)]
-      Kernel::exit @plugins[tag].status.to_i
+    def method_missing(method, *args, &block)
+      message = "undefined instance variable or method #{method}"
+      case @_runinng
+        when nil?
+          begin; raise Naplug::Error, message; rescue => e; eject! e ; end
+        else
+          raise Naplug::Error, message
+      end
+    end
+
+    def respond_to_missing?(method, *)
+      @plugins.keys? method || super
     end
 
   end
