@@ -299,9 +299,6 @@ In addition to the above class methods, the followingh instance methods are avai
 * `eject!`, to quickly bail out
 
 Overriding these will likely cause *Naplug* to misbehave, to say the least.
-
-### `eject!`
-
      
 ### Status
 
