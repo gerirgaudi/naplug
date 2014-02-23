@@ -24,7 +24,7 @@ module Naplug
     private
 
     def create_plugin(tag,block)
-      plugin = Plugin.new tag, block
+      plugin = Plugin.new tag, :meta, block
 
       module_eval do
         # setup <tag> methods for quick access to plugins
