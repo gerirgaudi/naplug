@@ -26,6 +26,30 @@ module Naplug
 
     end
 
+    module Hashes
+
+      # Thx Avdi Grimm! http://devblog.avdi.org/2009/11/20/hash-transforms-in-ruby/
+      def transform_hash(original, options={}, &block)
+        original.inject({}){|result, (key,value)|
+          value = if options[:deep] && Hash === value
+                    transform_hash(value, options, &block)
+                  else
+                    value
+                  end
+          block.call(result,key,value)
+          result
+        }
+      end
+
+      def symbolify_keys(hash)
+        transform_hash(hash) {|h, key, value|
+          h[key.to_sym] = value
+        }
+      end
+
+
+    end
+
   end
 
 end

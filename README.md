@@ -176,7 +176,7 @@ The above code will override the `:foo` argument with a value of `new argument`.
 
 Up until now, *Naplug* has essentially provided *syntactic sugar* to define and use what amounts to single-purpose plugins, along with some convenience methods to represent status and produce output. But plugins sometimes need to perform a number of possibly independent tasks to reach a final, _aggregated_ status.
 
-In *Naplug*, these tasks are _nested plugins_ or _subplugins_, and are commonly referred to as *plugs*. which are scoped to a _master_ plugin. When a plugin in created, we can define *plugs* inside the plugin through the `plugin` instance method.
+In *Naplug*, these tasks are _nested plugins_ or _subplugins_, and are commonly referred to as *plugs*. which are scoped to a _master_ plugin. When a plugin is created, we can define *plugs* inside the plugin through the `plugin` instance method. Again, these can be tagged, and plug tags must be unique, this time within a plugin.
 
     class PlugPlugin
     
@@ -194,6 +194,50 @@ In *Naplug*, these tasks are _nested plugins_ or _subplugins_, and are commonly 
       
       end
     end
+    
+Defining plugs imposes one important limitation: no other code besides plug definitions is allowed (in reality, it is allowed, just never executed).
+
+    class PluggedPlugin
+    
+      include Naplug
+      
+      plugin do |p|
+      
+        <do something here>     # will not be executed
+      
+        plugin :plug1 do |p1|
+          ...
+        end
+        
+        plugin :plug2 do |p2|
+          ...
+        end
+        
+        <do somthing else here>  # will not be executed
+      end
+      
+    end
+    
+#### Order of Execution
+
+Without any manual reordering, plugs are executed in the order in which they are defined when `exec!` is invoked. Execution order can be changed through the `order!` instance method, which accepts a list of tags in the desired order of execution.
+
+    plugin.order! :plug2, :plug1
+    
+If tags are omitted from the list, the missing plugs are pushed to the end of the line in the last order set.
+
+#### Enabling and Disabling Plugs
+
+When plugs are defined, the are assumed to be enabled and will be executed when `exec!` is invoked. There may be cases when it is desirable or necessary to disable plugins, which can be accomplished through the `disable!` instance method. A disabled plug can be re-enabled via the `enable!` plugin method:
+
+    plugin.disable! :plug2
+    
+Disabled plugs will not be executed and will not be taken into account when evaluating status. The active state of a plugin can be queried via the `enabled?` and `disabled?` methods.
+
+    plugin.enabled? :plug2 => false
+    plugin.disabled? :plug2 => true
+    
+Aditionally, `is_<tag>_enabled?` and `is_<tag>_disabled?` methods are available for each plug.
 
 #### Arguments
 
@@ -297,8 +341,11 @@ In addition to the above class methods, the followingh instance methods are avai
 * `[]` and `[]=` to get and set specific arguments
 * `to_str` to produce formatted plugin output
 * `eject!`, to quickly bail out
+* `enable!` and `enabled?`, `disable!` and `disabled?`, for enable and disabled plugs
 
 Overriding these will likely cause *Naplug* to misbehave, to say the least.
+
+Other methods can be defined in the class as necessary, and they can be used in the defined plugins or plugs, generally to provide helpers services. These should be defined as `private` or `protected` as necessary.
      
 ### Status
 

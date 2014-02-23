@@ -70,7 +70,7 @@ module Naplug
 
     def to_str(tag = default_plugin.tag)
       s_format = perfdata ? '%s: %s | %s' : '%s: %s'
-      s_array = perfdata ? [@plugins[tag].status,@plugins[tag].output,perfdata(tag).strip] : [@plugins[tag].status,@plugins[tag].output]
+      s_array = perfdata ? [@plugins[tag].status,@plugins[tag].output,perfdata] : [@plugins[tag].status,@plugins[tag].output]
       s_format % s_array
     end
 
@@ -119,7 +119,7 @@ module Naplug
           p.output! "#{e.backtrace[1][/[^\/]+:\d+/]}: #{e.message}"
       rescue => e
         p.status.unknown!
-        p.output! e.message
+        p.output!  "#{e.backtrace[1][/[^\/]+:\d+/]}: #{e.message}"
         p.payload! e
       ensure
         @_runinng = nil
