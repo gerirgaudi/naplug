@@ -1,4 +1,4 @@
-# Naplug
+# Naplug [![Gem Version](https://badge.fury.io/rb/naplug.png)](http://badge.fury.io/rb/naplug)
 
 *Naplug* is a [Nagios plugin](http://nagiosplug.sourceforge.net/developer-guidelines.html) library for Ruby focused on plugin internals: organization, status, performance data, output and exit code handling. It does not implement any functionality related to option and argument parsing, as there are fine tools already available for this purpose. It aims to ease the task of writing Nagios plugins in Ruby and _handling the paperwork_, allowing the plugin developer to concentrate on the test logic of the plugin. Its internal design is largely modeled after the very excellent [Worlkflow](https://github.com/geekq/workflow) library.
 
