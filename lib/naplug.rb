@@ -9,12 +9,9 @@ module Naplug
 
     attr_reader :plugins
 
-    class DuplicatePlugin < StandardError; end
-
     def plugin(tag = :main, &block)
       @plugins = Hash.new unless @plugins
-      raise DuplicatePlugin, "duplicate definition of #{tag}" if @plugins.key? tag
-      @plugins[tag] = create_plugin tag, block
+      @plugins[tag] = create_metaplugin tag, block
     end
 
     def tags
@@ -23,20 +20,12 @@ module Naplug
 
     private
 
-    def create_plugin(tag,block)
-      plugin = Plugin.new tag, :meta, block
-
+    def create_metaplugin(tag,block)
       module_eval do
-        # setup <tag> methods for quick access to plugins
-        define_method "#{tag}".to_sym do
-          @plugins[tag]
-        end
-        # setup <tag>! methods to involke exec! on a given plugin; it is desitable for this to accept arguments (future feature?)
-        define_method "#{tag}!".to_sym do
-          self.exec! tag
-        end
+        define_method "#{tag}".to_sym  do; plugin;         end    # <tag> methods for quick access to plugins
+        define_method "#{tag}!".to_sym do; self.exec! tag; end    # <tag>! methods to involke exec! on a given plugin
       end
-      plugin
+      Plugin.new tag, :meta, block
     end
 
   end
@@ -69,8 +58,8 @@ module Naplug
     end
 
     def to_str(tag = default_plugin.tag)
-      s_format = perfdata ? '%s: %s | %s' : '%s: %s'
-      s_array = perfdata ? [@plugins[tag].status,@plugins[tag].output,perfdata] : [@plugins[tag].status,@plugins[tag].output]
+      s_format = perfdata(tag) ? '%s: %s | %s' : '%s: %s'
+      s_array = perfdata(tag) ? [@plugins[tag].status,@plugins[tag].output,perfdata(tag)] : [@plugins[tag].status,@plugins[tag].output]
       s_format % s_array
     end
 
@@ -119,7 +108,7 @@ module Naplug
           p.output! "#{e.backtrace[1][/[^\/]+:\d+/]}: #{e.message}"
       rescue => e
         p.status.unknown!
-        p.output!  "#{e.backtrace[1][/[^\/]+:\d+/]}: #{e.message}"
+        p.output!  "#{e.backtrace[0][/[^\/]+:\d+/]}: #{e.message}"
         p.payload! e
       ensure
         @_runinng = nil
@@ -135,15 +124,13 @@ module Naplug
     def default_plugin
       return @plugins[:main] if @plugins.key? :main
       return @plugins[@plugins.keys[0]] if @plugins.size == 1
-      nil
+      raise Naplug::Error, 'unable to determine default plugin'
     end
 
     def perfdata(tag = default_plugin.tag)
       plugin = @plugins[tag]
       if plugin.has_plugins?
-        plugin.plugins.values.map do |plug|
-          plug.perfdata
-        end.join(' ').gsub(/^\s+$/,'').strip!
+        plugin.plugins.values.map { |plug| plug.perfdata }.join(' ').gsub(/^\s+$/,'').strip!
       else
         plugin.perfdata
       end

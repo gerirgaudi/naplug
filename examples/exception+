@@ -1,0 +1,48 @@
+#!/usr/bin/env ruby
+
+lib = File.expand_path(File.dirname(__FILE__) + '/../lib')
+$LOAD_PATH.unshift(lib) if File.directory?(lib) && !$LOAD_PATH.include?(lib)
+
+require 'rubygems'
+require 'naplug'
+
+module Naplug
+
+  module Examples
+
+    class ExceptionPlusPlugin
+    
+      include Naplug
+
+      EXCEPTIONS = [ ArgumentError, ZeroDivisionError, TypeError ]
+      
+      plugin do |p|
+
+        exception = EXCEPTIONS[p[:exception]]
+
+        begin
+          raise exception, "raising exception: #{exception}"
+        rescue ArgumentError => e
+          raise
+        rescue ZeroDivisionError => e
+          p.status.ok!
+          p.output! "divided by zero is infinity"
+        rescue => e
+          p.status.critical!
+          p.output! "got exception #{e.class}"
+        end
+
+      end
+      
+    end
+
+  end
+
+end
+    
+begin
+  plugin = Naplug::Examples::ExceptionPlusPlugin.new :exception => Random.rand(3)
+  plugin.exec!
+rescue Naplug::Error => e
+  plugin.eject! e
+end

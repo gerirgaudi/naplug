@@ -41,4 +41,4 @@ end
 
 x1 = MultiPluginPlugin.new :instance => :x1, :one => { :p1 => { :instance => :x1 }}
 x2 = MultiPluginPlugin.new :instance => :x2, :one => { :p1 => { :instance => :x2 }}
-x1.one!
+x1.exec!

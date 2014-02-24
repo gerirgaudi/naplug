@@ -172,6 +172,83 @@ Arguments can also be specified via the `args!` method:
     
 The above code will override the `:foo` argument with a value of `new argument`.
 
+### Exceptions and `eject!`
+
+Plugins operate in restricted runtime environments: Nagios expects the proper exit code and output. Naplug makes every effort to properly handle unexpected exceptions when executing plugins, and where it can't, it propagates them bundled in the `Naplug::Error` exception, which is about the only exception (from Naplug's point of view) that needs to be handled:
+
+    class ExceptionPlugin
+    
+      include Naplug
+      
+      plugin do |p|
+        raise p[:exception], "raised exception: #{p[:exception]}"
+      end
+      
+    end
+    
+    begin
+      plugin = ExceptionPlugin.new :exception => StandardError
+      plugin.exec!
+    rescue Naplug::Error => e
+      plugin.eject! e
+    end
+    
+Which produces:
+
+    naplug@plugin:~: examples/exception 
+    UNKNOWN: exception:18: raised exception: StandardError
+    naplug@plugin:~: echo $?
+    3
+
+The `eject!` method, which accepts a message string or an exception object as an argument, provides a last-ditch effort escape hatch to bail out of executing a plugin, producing an `UNKNOWN` status and proper from the message string or exception object.
+
+While Naplug will internally handle exceptions within a plugin, it may be desirable to handle them especifically:
+
+    class ExceptionPlusPlugin
+
+      include Naplug
+
+      EXCEPTIONS = [ ArgumentError, ZeroDivisionError, TypeError ]
+
+      plugin do |p|
+
+        exception = EXCEPTIONS[p[:exception]]
+
+        begin
+          raise exception, "raising exception: #{exception}"
+        rescue ArgumentError => e
+          raise
+        rescue ZeroDivisionError => e
+          p.status.ok!
+          p.output! "divided by zero is infinity"
+        rescue => e
+          p.status.critical!
+          p.output! "got exception #{e.class}"
+        end
+
+      end
+
+    end
+
+  end
+
+    
+    begin
+      plugin = ExceptionPluginPlus.new :exception => Random.rand(3)
+      plugin.exec!
+    rescue Naplug::Error => e
+      plugin.eject! e
+    end
+    
+Which produces:
+
+    naplug@plugin:~: examples/exception+
+    UNKNOWN: exception+:24: raising exception: ArgumentError
+    naplug@plugin:~: examples/exception+
+    CRITICAL: got exception TypeError
+    naplug@plugin:~: examples/exception+
+    OK: divided by zero is infinity
+
 ### Plugs: Plugins within Plugins 
 
 Up until now, *Naplug* has essentially provided *syntactic sugar* to define and use what amounts to single-purpose plugins, along with some convenience methods to represent status and produce output. But plugins sometimes need to perform a number of possibly independent tasks to reach a final, _aggregated_ status.
@@ -384,4 +461,8 @@ which produces
       status OK has exit code 0 after status.ok
     Comparing statuses:
       status [OK] < status1 [WARNING] is true
- 
+
+# Naplug Internals
+
+Naplug implements the class `Plugin`, which maintains plugin data, such as status, output, and performance data. Internally, and although all plugins are members of the `Plugin` class, there are two types of plugins: *metaplugins*, which are special instances created during class evaluation, and *regular* plugins, which the actual plugins instantiated by the user-defined class when new instances of the class are created. *Metaplugins* are intended to hold the block the implements the plugin (and in the future, possibly additional metadata). *Regular* plugins point to their corresponding *metaplugins* in order to have access to said 
+*Metaplugins* are stored as a class variable in the user class, whereas *regular* plugins are kept in the instance variables.
