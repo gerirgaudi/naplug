@@ -2,20 +2,20 @@
 
 *Naplug* is a [Nagios plugin](http://nagiosplug.sourceforge.net/developer-guidelines.html) library for Ruby focused on plugin internals: organization, status, performance data, output and exit code handling. It does not implement any functionality related to option and argument parsing, as there are fine tools already available for this purpose. It aims to ease the task of writing Nagios plugins in Ruby and _handling the paperwork_, allowing the plugin developer to concentrate on the test logic of the plugin. Its internal design is largely modeled after the very excellent [Worlkflow](https://github.com/geekq/workflow) library.
 
-*Naplug* allows plugins to contain other plugins, which is a useful abstraction to break up significant tasks that the plugin as a whole must perform in order to determine the state of a service or host. The status and output of these _subplugins_ is thus used to determine the overall status of the plugin and build the output depending on said status.
+*Naplug* allows plugins to contain other plugins (referred to as *plugs*), which are a useful abstraction to break up significant tasks that the plugin as a whole must perform in order to determine the state of a service or host. The status and output of these plugs is thus used to determine the overall status of the plugin and build the output depending on said status.
 
 While *Naplug* handles the nitty-gritty of Nagios plugins, it is important to have familiarity with the [Nagios Plugin Developer Guidelines](http://nagiosplug.sourceforge.net/developer-guidelines.html).
 
 #### Note
 
 * *Naplug* `1.x` is incompatible with *Naplug* `0.x` (`0.x` was never released as a Gem)
-* *Naplug* `1.x` is currently only supported on Ruby 1.9 and above; it will not be backported to 1.8
+* *Naplug* `1.x` is only supported on Ruby 1.9 and above; it will not be backported to 1.8
 
 ## Overview
 
 Naplug approaches Nagios plugins as Ruby classes (note that `plugin` is a reserved keyword at both the class and instance levels). To use *Naplug*, install the gem and:
 
-    require 'rubygems'
+    #!/usr/bin/end ruby -rubygems
     require 'naplug'
     
     class MyPlugin
@@ -44,7 +44,7 @@ A very simple plugin that always returns an OK status:
 
     AlwaysOkPlugin.new.exec!
 
-In the above example, a new class is defined (the class name is arbitrary), and within this class, a plugin is created, which performs some work to set the status and output of the plugin. Once the class is defined, a new instance of the plugin is created and executed. The `exec!` method executes the plugin, evaluates status, produces correctly formatted output, and exits with the appropriate exit code:
+In the above example, a new class `AlwaysOkPlugin` is defined (the class name is arbitrary), and within this class, a plugin is created, which performs some work to set the status and output of the plugin. Once the class is defined, a new instance of the plugin is created and executed. The `exec!` method executes the plugin, evaluates status, produces correctly formatted output, and exits with the appropriate exit code:
 
     naplug@plugin:~: alwaysok 
     OK: Optimism level: 100%
@@ -146,7 +146,7 @@ A more realistic example that checks the staleness of a marker file:
     plugin = MarkerFilePlugin.new :marker_file => '/tmp/my_marker', :critical => 120
     plugin.exec!    
 
-There are some worthwhile observations about the above example. A missing marker file prevents determining the stalesness of said file (infinite staleness?), implicitly resulting in an unknown `UNKNOWN` status and output corresponding to the message of the exception. For finer control of this behavior, exceptions can be raised inside the plugin, which will be handled internally:
+There are some worthwhile observations about the above example. A missing marker file prevents determining the stalesness of said file (infinite staleness?), implicitly resulting in an `UNKNOWN` status and output corresponding to the message of the exception. For finer control of this behavior, exceptions can be raised inside the plugin, which will be handled internally:
 
     plugin do |p|
       raise Errno::ENOENT, p[:marker_file] unless File.exists? p[:marker_file]
@@ -200,7 +200,7 @@ Which produces:
     naplug@plugin:~: echo $?
     3
 
-The `eject!` method, which accepts a message string or an exception object as an argument, provides a last-ditch effort escape hatch to bail out of executing a plugin, producing an `UNKNOWN` status and proper from the message string or exception object.
+The `eject!` method, which accepts a message string or an exception object as an argument, provides a last-ditch effort, out-of-band, escape hatch to bail out of executing a plugin, producing an `UNKNOWN` status and output from the message string or exception object.
 
 While Naplug will internally handle exceptions within a plugin, it may be desirable to handle them especifically:
 
@@ -229,9 +229,6 @@ While Naplug will internally handle exceptions within a plugin, it may be desira
       end
 
     end
-
-  end
-
     
     begin
       plugin = ExceptionPluginPlus.new :exception => Random.rand(3)
@@ -253,7 +250,7 @@ Which produces:
 
 Up until now, *Naplug* has essentially provided *syntactic sugar* to define and use what amounts to single-purpose plugins, along with some convenience methods to represent status and produce output. But plugins sometimes need to perform a number of possibly independent tasks to reach a final, _aggregated_ status.
 
-In *Naplug*, these tasks are _nested plugins_ or _subplugins_, and are commonly referred to as *plugs*. which are scoped to a _master_ plugin. When a plugin is created, we can define *plugs* inside the plugin through the `plugin` instance method. Again, these can be tagged, and plug tags must be unique, this time within a plugin.
+In *Naplug*, these tasks are _nested plugins_ or _subplugins_, and are referred to as *plugs* scoped to a _parent_ plugin. When a plugin is created, we can define *plugs* inside the plugin through the `plugin` instance method. Again, these can be tagged, and plug tags must be unique, this time within a plugin.
 
     class PlugPlugin
     
@@ -272,7 +269,7 @@ In *Naplug*, these tasks are _nested plugins_ or _subplugins_, and are commonly 
       end
     end
     
-Defining plugs imposes one important limitation: no other code besides plug definitions is allowed (in reality, it is allowed, just never executed).
+Defining plugs imposes one important limitation: no other code besides plug definitions is allowed (in reality, it is allowed, just never really during executed).
 
     class PluggedPlugin
     
@@ -297,24 +294,10 @@ Defining plugs imposes one important limitation: no other code besides plug defi
     
 #### Order of Execution
 
-Without any manual reordering, plugs are executed in the order in which they are defined when `exec!` is invoked. Execution order can be changed through the `order!` instance method, which accepts a list of tags in the desired order of execution.
+When `exec!` is invoked on a plugin, plugs are executed in the order in which they are defined, which is a side-effect of the fact that plugs are inserted into a Hash to keep track of them: [Hashes enumerate their values in the order that the corresponding keys were inserted](http://www.ruby-doc.org/core-1.9.3/Hash.html). Execution order can only be controlled manually:
 
-    plugin.order! :plug2, :plug1
-    
-If tags are omitted from the list, the missing plugs are pushed to the end of the line in the last order set.
-
-#### Enabling and Disabling Plugs
-
-When plugs are defined, the are assumed to be enabled and will be executed when `exec!` is invoked. There may be cases when it is desirable or necessary to disable plugins, which can be accomplished through the `disable!` instance method. A disabled plug can be re-enabled via the `enable!` plugin method:
-
-    plugin.disable! :plug2
-    
-Disabled plugs will not be executed and will not be taken into account when evaluating status. The active state of a plugin can be queried via the `enabled?` and `disabled?` methods.
-
-    plugin.enabled? :plug2 => false
-    plugin.disabled? :plug2 => true
-    
-Aditionally, `is_<tag>_enabled?` and `is_<tag>_disabled?` methods are available for each plug.
+    plugin.exec :plug2
+    plugin.exex :plug1
 
 #### Arguments
 
@@ -462,7 +445,27 @@ which produces
     Comparing statuses:
       status [OK] < status1 [WARNING] is true
 
-# Naplug Internals
+# Futures
 
-Naplug implements the class `Plugin`, which maintains plugin data, such as status, output, and performance data. Internally, and although all plugins are members of the `Plugin` class, there are two types of plugins: *metaplugins*, which are special instances created during class evaluation, and *regular* plugins, which the actual plugins instantiated by the user-defined class when new instances of the class are created. *Metaplugins* are intended to hold the block the implements the plugin (and in the future, possibly additional metadata). *Regular* plugins point to their corresponding *metaplugins* in order to have access to said 
-*Metaplugins* are stored as a class variable in the user class, whereas *regular* plugins are kept in the instance variables.
+There following are some ideas on future Naplug features.
+
+### Order of Execution
+
+A future release will allow the execution order to be changed through an `order!` instance method, which will accept a list of tags in the desired order of execution.
+
+    plugin.order! :plug2, :plug1
+    
+If tags are omitted from the list, the missing plugs are pushed to the end of the line in the last order set.
+
+#### Enabling and Disabling Plugs
+
+Currently, when plugs are defined, they are assumed to be enabled and will be executed when `exec!` is invoked. There may be cases when it may be desirable or necessary to disable specific plugins, which will be accomplished through the `disable!` instance method. A disabled plug can be re-enabled via the `enable!` plugin method:
+
+    plugin.disable! :plug2
+    
+Disabled plugs will not be executed and will not be taken into account when evaluating status. The active state of a plugin can be queried via the `enabled?` and `disabled?` methods.
+
+    plugin.enabled? :plug2 => false
+    plugin.disabled? :plug2 => true
+    
+Aditionally, `is_<tag>_enabled?` and `is_<tag>_disabled?` methods will be available for each plug.

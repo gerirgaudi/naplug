@@ -40,8 +40,6 @@ module Naplug
 
       @_args = Hash.new
       args! args
-
-      @_runinng = nil
     end
 
     def args
