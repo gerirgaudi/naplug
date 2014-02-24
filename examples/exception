@@ -1,0 +1,32 @@
+#!/usr/bin/env ruby
+
+lib = File.expand_path(File.dirname(__FILE__) + '/../lib')
+$LOAD_PATH.unshift(lib) if File.directory?(lib) && !$LOAD_PATH.include?(lib)
+
+require 'rubygems'
+require 'naplug'
+
+module Naplug
+
+  module Examples
+
+    class ExceptionPlugin
+    
+      include Naplug
+      
+      plugin do |p|
+        raise p[:exception], "raised exception: #{p[:exception]}"
+      end
+      
+    end
+
+  end
+
+end
+    
+begin
+  plugin = Naplug::Examples::ExceptionPlugin.new :exception => StandardError
+  plugin.exec!
+rescue Naplug::Error => e
+  plugin.eject! e
+end

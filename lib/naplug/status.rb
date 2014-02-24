@@ -9,10 +9,10 @@ module Naplug
     class InvalidStatus < StandardError; end
 
     STATUS = {
-        :ok       =>  OpenStruct.new({ :i => 0, :s => 'OK',       }),
-        :warning  =>  OpenStruct.new({ :i => 1, :s => 'WARNING',  }),
-        :critical =>  OpenStruct.new({ :i => 2, :s => 'CRITICAL', }),
-        :unknown  =>  OpenStruct.new({ :i => 3, :s => 'UNKNOWN'   })
+        :ok       =>  OpenStruct.new({ :i => 0, :s => 'OK',       :y => '+' }),
+        :warning  =>  OpenStruct.new({ :i => 1, :s => 'WARNING',  :y => '-' }),
+        :critical =>  OpenStruct.new({ :i => 2, :s => 'CRITICAL', :y => '!' }),
+        :unknown  =>  OpenStruct.new({ :i => 3, :s => 'UNKNOWN',  :y => '*' })
     }
 
     def self.states
@@ -46,8 +46,8 @@ module Naplug
       STATUS[@status].i
     end
 
-    def to_l
-      STATUS[@status].s.chars.first
+    def to_y
+      STATUS[@status].y
     end
 
     def <=>(other)
