@@ -46,7 +46,7 @@ module Naplug
     # Create a metaplugin (helper)
     def create_metaplugin(tag,block)
       module_eval do
-        define_method "#{tag}".to_sym  do; plugin;         end    # <tag> methods for quick access to plugins
+        define_method "#{tag}".to_sym  do; @plugins[tag];  end    # <tag> methods for quick access to plugins
         define_method "#{tag}!".to_sym do; self.exec! tag; end    # <tag>! methods to involke exec! on a given plugin
       end
       Plugin.new tag, block, :meta => true, :parent => self
@@ -118,6 +118,11 @@ module Naplug
 
     def eval(tag = default_plugin.tag)
       @plugins[tag].eval
+    end
+
+    def eval!(tag = default_plugin.tag)
+      @plugins[tag].eval
+      exit tag
     end
 
     def eject!(payload = nil)
