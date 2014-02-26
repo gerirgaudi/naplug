@@ -8,27 +8,26 @@ module Naplug
 
   class Plugin
 
-    attr_reader :block, :plugins, :tag
+    attr_reader :block, :plugins, :tag, :meta
 
     class DuplicatePlugin < StandardError; end
 
-    def initialize(tag, meta = false, block)
+    DEFAULT_META = { :debug => false, :enabled => true }
+
+    def initialize(tag, block, meta = {})
       @tag = tag
       @block = block
       @plugins = Hash.new
 
       @_args = Hash.new
       @_data = OpenStruct.new :status => Status.new, :output => Output.new, :payload => nil, :perfdata => nil
-      @_meta = OpenStruct.new :status => meta, :enabled => true, :debug => true
+      @_meta = OpenStruct.new DEFAULT_META.merge meta
 
       begin; instance_eval &block ; rescue => e; nil ; end
 
     end
 
-    # @param format [Symbol] the format type, `:text` or `:html`
-    # @return [True, False<String>, nil] the object or objects to
-    #   find in the database. Can be nil.@return [String] the object converted into the expected format.
-    # # true if this plugin is a metaplugin, false otherwise
+    # @return [True, False] true if this plugin is a metaplugin, false otherwise
     def is_meta?
       @_meta.status
     end
@@ -51,6 +50,10 @@ module Naplug
     # true when the plugin is disabled; false otherwise
     def is_disabled?
       not @_meta.enabled
+    end
+
+    def parent
+      @_meta.parent
     end
 
     # true when a plugin contains plugs
@@ -91,8 +94,8 @@ module Naplug
     end
 
     def perfdata!(label,value,f = {})
-      @_data.perfdata ||= PerformanceData.new @tag
-      @_data.perfdata.store label, value, f
+      @_data.perfdata ||= PerformanceData.new self
+      @_data.perfdata[label] = value, f
     end
 
     def payload
@@ -124,7 +127,7 @@ module Naplug
       @_args[k] = v
     end
 
-    def to_s
+    def to_str
       '%s: %s' % [status,output]
     end
 
@@ -141,7 +144,7 @@ module Naplug
 
     def plugin(tag, &block)
       raise DuplicatePlugin, "duplicate definition of #{tag}" if @plugins.key? tag
-      @plugins[tag] = Plugin.new tag, block
+      @plugins[tag] = Plugin.new tag, block, :parent => self
       self.define_singleton_method tag do
         @plugins[tag]
       end

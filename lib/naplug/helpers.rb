@@ -1,4 +1,6 @@
 require 'json'
+require 'socket'
+require 'timeout'
 require 'naplug/status'
 
 module Naplug
@@ -47,6 +49,65 @@ module Naplug
         }
       end
 
+    end
+
+    module ENGraphite
+
+      class Client
+
+        attr_reader :metrics
+
+        def initialize(options)
+          raise ArgumentError, 'missing graphite server address' if options[:graphite].nil?
+          @graphite = options[:graphite]
+          @port = options[:port].nil? ? 2003 : options[:port].to_i
+          @prefix = options[:prefix].nil? ? '' : options[:prefix]
+          @metrics = []
+        end
+
+        def metric path, value, time = Time.now
+          @metrics.push(Metric.new(path,value,time))
+        end
+
+        def metrics!
+          @metrics.each do |metric|
+            metric = "#{@prefix}.#{metric.to_s}\n"
+            print metric
+          end
+        end
+
+        def flush!(options = { :timeout => 3})
+          begin
+            Timeout.timeout(options[:timeout]) do
+              s = TCPSocket.open(@graphite,@port)
+              @metrics.each do |metric|
+                metric = "#{@prefix}.#{metric.to_s}\n"
+                s.write metric
+              end
+              s.close
+            end
+          rescue Timeout::Error => e
+            raise Naplug::Error, "graphite timeout (#{options[:timeout]}s)"
+          rescue Errno::ECONNREFUSED, SocketError => e
+            raise Naplug::Error, 'graphite socket error'
+          end
+        end
+      end
+
+      class Metric
+
+        attr_reader :path, :value, :time
+
+        def initialize(path,value,time = Time.now)
+          @path = path
+          @value = value
+          @time = time
+        end
+
+        def to_s
+          '%s %d %d' % [@path,@value,@time.to_i]
+        end
+      end
 
     end
 

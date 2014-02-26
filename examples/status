@@ -19,7 +19,7 @@ module Naplug
     puts "Working with a status:"
     status = Naplug::Status.new
     puts "  status #{status} has exit code #{status.to_i} after initialization"
-    status.ok
+    status.ok!
     puts "  status #{status} has exit code #{status.to_i} after status.ok"
 
     puts "Comparing statuses:"
