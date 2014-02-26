@@ -78,7 +78,6 @@ module Naplug
         def flush!(options = { :timeout => 3})
           begin
             Timeout.timeout(options[:timeout]) do
-              sleep 5
               s = TCPSocket.open(@graphite,@port)
               @metrics.each do |metric|
                 metric = "#{@prefix}.#{metric.to_s}\n"
