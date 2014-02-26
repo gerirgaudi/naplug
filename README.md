@@ -246,6 +246,33 @@ Which produces:
     naplug@plugin:~: examples/exception+
     OK: divided by zero is infinity
 
+### Performance Data
+
+Naplug supports plugin performance data, which is only available after a plugin has been `exec`ed. Within plugins, two methods are relevant: `perfdata!` and `perfdata`, which set and get performance data metrics, respectively:
+
+    class PerfDataPlugin
+
+      include Naplug
+
+      plugin :p do |p|
+        p.status.ok!
+        p.output! "#{p.tag}:#{p[:instance]} with argument metric #{p[:metric]}"
+        p.perfdata! :metric, p[:metric]
+        p.perfdata! '"_met ric!', 30, :max => 70
+      end
+
+    end
+
+    pd = PerfDataPlugin.new :instance => :x1, :p => { :metric => 10 }
+    pd.exec!
+
+This yields:
+
+    naplug@plugin:~: perfdata_uniplug 
+    OK: p:x1 with argument metric 10 | metric=10;;;; '"_met ric!'=30;;;;70
+    
+It is also possible to access performance data from within the user-defined plugin class through the `perfdata` method, which returns an array of [`PerformanceData`](http://rubydoc.info/gems/naplug/Naplug/PerformanceData) objects.
+
 ### Plugs: Plugins within Plugins 
 
 Up until now, *Naplug* has essentially provided *syntactic sugar* to define and use what amounts to single-purpose plugins, along with some convenience methods to represent status and produce output. But plugins sometimes need to perform a number of possibly independent tasks to reach a final, _aggregated_ status.
@@ -318,6 +345,71 @@ Tagged arguments have priority over shared ones.
                             :plug1 => { :file => '/var/tmp/file', :critical => 120 },
                             :plug2 => { :ok => 0, :warning => 5, :critical => 10 })
                             
+#### Performance Data
+
+As mentioned earlier, Naplug supports plugin performance data, through two methods of `Plugin`, `perfdata!` and `perfdata`:
+
+    class PerfDataPlugPlugin
+
+      include Naplug
+
+      plugin :p do |p|
+
+        plugin :p1 do |p1|
+          p1.status.ok!
+          p1.output! "#{p.tag}:#{p1.tag} #{p[:instance]}"
+          p1.perfdata! :metric, p1[:metric], :max => 70
+          p1.perfdata! '"_met ric!', 30, :max => 70
+        end
+
+        plugin :p2 do |p2|
+          p2.status.ok!
+          p2.output! "#{p.tag}:#{p2.tag} #{p[:instance]}"
+          p2.perfdata! 'p2/metric', p2[:metric], :crit => 70
+        end
+
+        plugin :p3 do |p3|
+          p3.status.ok!
+         p3.output! "#{p.tag}:#{p3.tag} #{p[:instance]}"
+        end
+      end
+    end
+
+    # Note: the following code is meant to show some of the behavior related to Performance Data:
+    plugin = PerfDataPlugPlugin.new :instance => :x1, :p1 => { :metric => 10 }, :p2 => { :metric => 50 }
+    plugin.exec
+    
+    # Plugin Perfdata Ancestors
+	plugin.perfdata.each do |pd|
+	  puts "#{pd.tag} has #{pd.to_a.size} labels and its tree is #{pd.ancestors :mode => :tags}"
+	end
+
+	plugin.perfdata.each do |pd|
+      puts "plugin #{pd.tag} has #{pd.labels}"
+	end
+	
+which produces:
+
+    plugin@naplug:~: perfdata_multiplug
+    perfdata p1 has 2 labels and its tree is p/p1
+    perfdata p2 has 1 labels and its tree is p/p2
+    plugin p1 has ["metric", "'\"_met ric!'"]
+    plugin p2 has ["p2/metric"]
+
+Some of this functionality is intended to ease integration with, for instance, Graphite:
+
+    g = Graphite.new :hostname => 'graphite', :port => 2013
+    h = `hostname`.gsub(/\./,'_')
+    
+    plugin.perfdata.each do |pd|
+      pd.to_a.each do |l|
+        g.push "#{h}_app_#{l}
+      end
+    end
+    g.flush!
+
+This would push the collected performance data metrics to Graphite with an invented API. Note that Nagios performance data labels are not always legal graphite metric names (`"\"_met ric!'` above). Naplug makes no attempt to address this.
+                                                            
 #### A Plugged Plugin Example
 
 Take a service for which we wish to monitor three conditions:
@@ -457,7 +549,7 @@ A future release will allow the execution order to be changed through an `order!
     
 If tags are omitted from the list, the missing plugs are pushed to the end of the line in the last order set.
 
-#### Enabling and Disabling Plugs
+### Enabling and Disabling Plugs
 
 Currently, when plugs are defined, they are assumed to be enabled and will be executed when `exec!` is invoked. There may be cases when it may be desirable or necessary to disable specific plugins, which will be accomplished through the `disable!` instance method. A disabled plug can be re-enabled via the `enable!` plugin method:
 

@@ -1,0 +1,48 @@
+#!/usr/bin/env ruby -rubygems
+
+lib = File.expand_path(File.dirname(__FILE__) + '/../lib')
+$LOAD_PATH.unshift(lib) if File.directory?(lib) && !$LOAD_PATH.include?(lib)
+
+require 'naplug'
+require 'awesome_print'
+
+class PerfDataPlugPlugin
+
+  include Naplug
+
+  plugin :p do |p|
+
+    plugin :p1 do |p1|
+      p1.status.ok!
+      p1.output! "#{p.tag}:#{p1.tag} #{p[:instance]}"
+      p1.perfdata! :metric, p1[:metric], :max => 70
+      p1.perfdata! '"_met ric!', 30, :max => 70
+    end
+
+    plugin :p2 do |p2|
+      p2.status.ok!
+      p2.output! "#{p.tag}:#{p2.tag} #{p[:instance]}"
+      p2.perfdata! 'p2/metric', p2[:metric], :crit => 70
+    end
+
+    plugin :p3 do |p3|
+      p3.status.ok!
+      p3.output! "#{p.tag}:#{p3.tag} #{p[:instance]}"
+    end
+
+  end
+
+end
+
+plugin = PerfDataPlugPlugin.new :instance => :x1, :p1 => { :metric => 10 }, :p2 => { :metric => 50 }
+plugin.exec
+
+# Plugin Perfdata Ancestors
+plugin.perfdata.each do |pd|
+    puts "perfdata #{pd.tag} has #{pd.to_a.size} labels and its tree is #{pd.ancestors :mode => :tags}"
+end
+
+plugin.perfdata.each do |pd|
+    puts "plugin #{pd.tag} has labels #{pd.labels}"
+end
+

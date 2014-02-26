@@ -1,0 +1,24 @@
+#!/usr/bin/env ruby
+
+lib = File.expand_path(File.dirname(__FILE__) + '/../lib')
+$LOAD_PATH.unshift(lib) if File.directory?(lib) && !$LOAD_PATH.include?(lib)
+
+require 'rubygems'
+require 'naplug'
+#require 'awesome_print'
+
+class PerfDataPlugin
+
+  include Naplug
+
+  plugin :p do |p|
+    p.status.ok!
+    p.output! "#{p.tag}:#{p[:instance]} with argument metric #{p[:metric]}"
+    p.perfdata! :metric, p[:metric]
+    p.perfdata! '"_met ric!', 30, :max => 70
+  end
+
+end
+
+pd = PerfDataPlugin.new :instance => :x1, :p => { :metric => 10 }
+pd.exec!
