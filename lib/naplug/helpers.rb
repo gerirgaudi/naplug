@@ -1,4 +1,5 @@
 require 'json'
+require 'socket'
 require 'timeout'
 require 'naplug/status'
 
@@ -87,8 +88,8 @@ module Naplug
             end
           rescue Timeout::Error => e
             raise Naplug::Error, "graphite timeout (#{options[:timeout]}s)"
-          rescue Errno::ECONNREFUSED => e
-            raise Naplug::Error, 'graphite connection refused'
+          rescue Errno::ECONNREFUSED, SocketError => e
+            raise Naplug::Error, 'graphite socket error'
           end
         end
       end
