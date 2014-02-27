@@ -1,6 +1,6 @@
 # Naplug [![Gem Version](https://badge.fury.io/rb/naplug.png)](http://badge.fury.io/rb/naplug)
 
-*Naplug* is a [Nagios plugin](http://nagiosplug.sourceforge.net/developer-guidelines.html) library for Ruby focused on plugin internals: organization, status, performance data, output and exit code handling. It does not implement any functionality related to option and argument parsing, as there are [fine tools already available for this purpose](https://www.ruby-toolbox.com/categories/CLI_Option_Parsers). It aims to ease the task of writing Nagios plugins in Ruby and _handling the paperwork_, allowing the plugin developer to concentrate on the test logic of the plugin. Its internal design is largely modeled after the very excellent [Worlkflow](https://github.com/geekq/workflow) library.
+*Naplug* is a [Nagios plugin](http://nagiosplug.sourceforge.net/developer-guidelines.html) library for Ruby focused on plugin internals: organization, status, performance data, output and exit code handling. It contains (but does not include by default) functionality related to option and argument parsing, allowing plugin developers to use [any of the many fine CLI tools available](https://www.ruby-toolbox.com/categories/CLI_Option_Parsers) for this purpose. It aims to ease the task of writing Nagios plugins in Ruby and _handling the paperwork_, allowing the plugin developer to concentrate on the test logic of the plugin. Some of internal implementation is largely modeled after the very excellent [Worlkflow](https://github.com/geekq/workflow) library.
 
 *Naplug* allows plugins to contain other plugins (referred to as *plugs*), which are a useful abstraction to break up significant tasks that the plugin as a whole must perform in order to determine the state of a service or host. The status and output of these plugs is thus used to determine the overall status of the plugin and build the output depending on said status.
 
@@ -499,7 +499,7 @@ Overriding these will likely cause *Naplug* to misbehave, to say the least.
 
 Other methods can be defined in the class as necessary, and they can be used in the defined plugins or plugs, generally to provide helpers services. These should be defined as `private` or `protected` as necessary.
      
-### Status
+## Status
 
 Status is a special object that represent the status of a plugin for each of the defined states in the [Nagios Plugin Guidelines](http://nagiosplug.sourceforge.net/developer-guidelines.html): `OK`, `WARNING`, `CRITICAL` and `UNKNOWN`. Each of these states is itself an instance method which sets the state, and you can obtain the string and numeric representation through the usual methods `to_s` and `to_i`. The initial (and default) status of a `Status` object is `UNKNOWN`. Statuses are comparable in that larger statuses represent worse states, a feature that will come handy shortly.
 
@@ -536,6 +536,48 @@ which produces
       status OK has exit code 0 after status.ok
     Comparing statuses:
       status [OK] < status1 [WARNING] is true
+
+## Naplug Helpers
+
+*Naplug* includes helpers, which are not loaded by default.
+
+### `Naplug::Helpers::CLI`
+
+Naplug is very much focused on plugin internals, leaving the work of command-line parsing to external entities. This allows plugin developers to use their preferred choice of parsers, such as [`thor`](http://whatisthor.com), [`Slop`](https://github.com/leejarvis/slop) or `OptionsParser`.
+
+A helper is however built-in, and uses the small and very flexible [*trollop*] library, which must be installed as a gem. To use:
+
+    require 'naplug'
+    require 'naplug/helpers/cli'
+    
+    class FooPlugin
+    
+      VERSION = '1.0.0'
+    
+      include Naplug
+    
+      plugin do |p|
+        ...
+      end
+    end
+    
+    class FooPluginCLI
+    
+      include Naplug::Helpers::CLI
+      
+      opts = options do
+        version FooPlugin::VERSION
+        banner "#{File.basename($0)}"
+        opt :warning, 'number of mtime WARNING seconds (required)', :type => :int, :required => true
+        opt :critical, 'number of mtime CRITICAL seconds (required)', :type => :int, :required => true
+      end
+      
+      plugin = FooPlugin.new opts
+      plugin.exec!
+      
+    end
+    
+Naplug does change the behavior of *Trollop* so that when arguments generate an error, these are handled correctly as a plugin (producing an `UNKNOWN` status).
 
 # Futures
 
