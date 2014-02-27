@@ -1,5 +1,4 @@
 require 'json'
-require 'awesome_print'
 
 module Naplug
 
@@ -13,7 +12,6 @@ module Naplug
 
       module ClassMethods
         def hashify_json_thresholds(*threstag)
-          ap threstag, :raw => true
           tag, thresholds_json, thresholds_hash = case threstag.size
                                                     when 0, 1
                                                      [nil, threstag[0], {}]
