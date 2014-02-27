@@ -11,8 +11,6 @@
 #--
 # Naplug::ClassMethods and Naplug::InstanceMethods
 
-
-require 'rubygems'
 require 'naplug/plugin'
 
 module Naplug
