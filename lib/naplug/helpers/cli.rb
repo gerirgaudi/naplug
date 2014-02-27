@@ -19,7 +19,7 @@ module Naplug
           begin
             yield
           rescue CommandlineError => e
-            plugin = Naplug::Plugin.new :cli, nil
+            plugin = Naplug::Plugin.new :cli, Proc.new { true }, {}
             plugin.output! e.message
             print "%s: %s\n" % [plugin.status.to_s,plugin.output]
             exit plugin.status.to_i

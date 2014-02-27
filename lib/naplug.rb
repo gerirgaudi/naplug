@@ -28,9 +28,10 @@ module Naplug
     # Create a metaplugin (which basically contains a tag and a block)
     # @param tag [Symbol] the plugin tag
     # @return [Plugin] a metaplugin
-    def plugin(tag = :main, &block)
+    def plugin(*tagmeta, &block)
+      tag, meta = tagmeta_grok tagmeta
       @plugins = Hash.new unless @plugins
-      @plugins[tag] = create_metaplugin tag, block
+      @plugins[tag] = create_metaplugin tag, meta, block
     end
 
     # A list of plugin tags
@@ -42,12 +43,33 @@ module Naplug
     private
 
     # Create a metaplugin (helper)
-    def create_metaplugin(tag,block)
+    def create_metaplugin(tag,meta,block)
       module_eval do
         define_method "#{tag}".to_sym  do; @plugins[tag];  end    # <tag> methods for quick access to plugins
         define_method "#{tag}!".to_sym do; self.exec! tag; end    # <tag>! methods to involke exec! on a given plugin
       end
-      Plugin.new tag, block, :meta => true, :parent => self
+      Plugin.new tag, block, meta.merge({ :parent => self })
+    end
+
+    def tagmeta_grok(tagmeta)
+      case tagmeta.size
+        when 0
+          [:main, {}]
+        when 1
+          case tagmeta[0]
+            when Symbol
+              [tagmeta[0], {}]
+            when Hash
+              [:main,tagmeta[0]]
+            else
+              raise Naplug::Error, 'ArgumentError on Naplug#plugin'
+          end
+        when 2
+          raise Naplug::Error, 'ArgumentError on Naplug#plugin' unless tagmeta[0].is_a? Symbol and tagmeta[1].is_a? Hash
+          tagmeta[0..1]
+        else
+          raise Naplug::Error, 'ArgumentError on Naplug#plugin'
+      end
     end
 
   end
@@ -166,7 +188,7 @@ module Naplug
 
     def plugins!
       self.class.plugins.each do |tag,plugin|
-        @plugins[tag] = Plugin.new tag, plugin.block
+        @plugins[tag] = Plugin.new tag, plugin.block, {}
       end
     end
 
