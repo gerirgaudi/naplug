@@ -22,7 +22,7 @@ module Naplug
             plugin = Naplug::Plugin.new :cli, nil
             plugin.output! e.message
             print "%s: %s\n" % [plugin.status.to_s,plugin.output]
-            Kernel::exit plugin.status.to_i
+            exit plugin.status.to_i
           rescue HelpNeeded
             parser.educate
             exit
