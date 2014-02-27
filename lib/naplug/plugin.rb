@@ -13,8 +13,11 @@ module Naplug
     class DuplicatePlugin < StandardError; end
 
     DEFAULT_META = { :debug => false, :enabled => true }
+    VALID_META_OPTIONS = [ :debug, :state, :description, :parent ]
 
-    def initialize(tag, block, meta = {})
+    def initialize(tag, block, meta)
+      validate_meta_options meta
+
       @tag = tag
       @block = block
       @plugins = Hash.new
@@ -23,7 +26,13 @@ module Naplug
       @_data = OpenStruct.new :status => Status.new, :output => Output.new, :payload => nil, :perfdata => nil
       @_meta = OpenStruct.new DEFAULT_META.merge meta
 
-      begin; instance_eval &block ; rescue => e; nil ; end
+      begin
+        instance_eval &block
+      rescue ArgumentError => e
+        raise
+      rescue
+        nil
+      end
 
     end
 
@@ -54,6 +63,10 @@ module Naplug
 
     def parent
       @_meta.parent
+    end
+
+    def description
+      @_meta.description
     end
 
     # true when a plugin contains plugs
@@ -142,9 +155,10 @@ module Naplug
 
     private
 
-    def plugin(tag, &block)
+    def plugin(*tagmeta, &block)
+      tag,meta = tagmeta_grok(tagmeta)
       raise DuplicatePlugin, "duplicate definition of #{tag}" if @plugins.key? tag
-      @plugins[tag] = Plugin.new tag, block, :parent => self
+      @plugins[tag] = Plugin.new tag, block, meta.merge({ :parent => self })
       self.define_singleton_method tag do
         @plugins[tag]
       end
@@ -152,6 +166,34 @@ module Naplug
 
     def debug?
       @_meta.debug
+    end
+
+    def tagmeta_grok(tagmeta)
+      case tagmeta.size
+        when 0
+          [:main, {}]
+        when 1
+          case tagmeta[0]
+            when Symbol
+              [tagmeta[0], {}]
+            when Hash
+              [:main,tagmeta[0]]
+            else
+              raise Naplug::Error, 'ArgumentError on Naplug#plugin'
+          end
+        when 2
+          raise Naplug::Error, 'ArgumentError on Naplug#plugin' unless tagmeta[0].is_a? Symbol and tagmeta[1].is_a? Hash
+          tagmeta[0..1]
+        else
+          raise Naplug::Error, 'ArgumentError on Naplug#plugin'
+      end
+    end
+
+    def validate_meta_options(options)
+      invalid_options = options.keys - VALID_META_OPTIONS
+      if invalid_options.any?
+        raise ArgumentError, "invalid meta option(s): #{invalid_options.join(', ')}"
+      end
     end
 
   end
