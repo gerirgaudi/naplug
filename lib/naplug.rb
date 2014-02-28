@@ -11,6 +11,7 @@
 #--
 # Naplug::ClassMethods and Naplug::InstanceMethods
 
+require 'naplug/meta'
 require 'naplug/plugin'
 require 'naplug/helpers/grokkers'
 
@@ -33,6 +34,8 @@ module Naplug
     # @return [Plugin] a metaplugin
     def plugin(*tagmeta, &block)
       tag, meta = tagmeta_grok tagmeta
+#      @metas = Hash.new unless @metas
+#      @metas[tag] = Meta.new meta.merge :meta => true
       @plugins = Hash.new unless @plugins
       @plugins[tag] = create_metaplugin tag, meta, block
     end
@@ -51,7 +54,7 @@ module Naplug
         define_method "#{tag}".to_sym  do; @plugins[tag];  end    # <tag> methods for quick access to plugins
         define_method "#{tag}!".to_sym do; self.exec! tag; end    # <tag>! methods to involke exec! on a given plugin
       end
-      Plugin.new tag, block, meta.merge({ :parent => self })
+      Plugin.new tag, block, meta.merge(:parent => self, :meta => true)
     end
 
   end
@@ -170,7 +173,7 @@ module Naplug
 
     def plugins!
       self.class.plugins.each do |tag,plugin|
-        @plugins[tag] = Plugin.new tag, plugin.block, {}
+        @plugins[tag] = Plugin.new tag, plugin.block, plugin.meta.to_h.merge(:meta => false)
       end
     end
 
