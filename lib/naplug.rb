@@ -143,12 +143,7 @@ module Naplug
 
     # @return [Array<PerformanceData>] a list of performance data objects
     def perfdata(tag = default_plugin.tag)
-      plugin = @plugins[tag]
-      if plugin.has_plugins?
-        plugin.plugins.values.select { |plug| plug.perfdata }.map { |plug| plug.perfdata }
-      else
-        plugin.perfdata ? [plugin.perfdata] : []
-      end
+      @plugins[tag].perfdata(:deep).flatten.select { |pd| pd}
     end
 
     private

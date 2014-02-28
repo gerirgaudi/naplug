@@ -12,7 +12,7 @@ module Naplug
 
     include Naplug::Helpers::Grokkers
 
-    attr_reader :block, :plugins, :tag
+    attr_reader :block, :plugins, :tag, :_data
 
     def initialize(tag, block, meta)
       @tag = tag
@@ -78,8 +78,13 @@ module Naplug
     end
 
     # returns the performance data of the plugin as a PerformanceData object
-    def perfdata
-      @_data.perfdata
+    def perfdata(mode = nil)
+      case mode
+        when :deep
+          plugins.values.map { |p| p.perfdata :deep }.push @_data.perfdata
+        else
+          @_data.perfdata
+      end
     end
 
     def perfdata!(label,value,f = {})
