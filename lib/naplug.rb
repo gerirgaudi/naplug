@@ -34,10 +34,15 @@ module Naplug
     # @return [Plugin] a metaplugin
     def plugin(*tagmeta, &block)
       tag, meta = tagmeta_grok tagmeta
-#      @metas = Hash.new unless @metas
-#      @metas[tag] = Meta.new meta.merge :meta => true
+      @metas = Hash.new unless @metas
+      @metas[tag] = Meta.new meta.merge :meta => true
       @plugins = Hash.new unless @plugins
       @plugins[tag] = create_metaplugin tag, meta, block
+      @_time = { :start => Time.now } #  if m[:benchmark]
+    end
+
+    def meta(m)
+      @_time = { :start => Time.now } #  if m[:benchmark]
     end
 
     # A list of plugin tags
@@ -105,8 +110,11 @@ module Naplug
     # Execute, evaluate and exit the plugin according to the plugin status, outputting the plugin's text output (and performance data, if applicable)
     # @param tag [Symbol] a plugin tag
     def exec!(tag = default_plugin.tag)
-      exec tag
-      eval tag
+      t = Benchmark.realtime do
+        exec tag
+        eval tag
+      end
+      @plugins[tag].perfdata! "monitoring.#{File.basename($0)}.#{tag}", t if @plugins[tag].meta.benchmark
       exit tag
     end
 
@@ -187,6 +195,8 @@ module Naplug
     end
 
     def exit(tag = default_plugin.tag)
+      benchmark = Time.now - self.class._time[:start]
+      puts benchmark
       print "%s\n" % [to_str(tag)]
       Kernel::exit @plugins[tag].status.to_i
     end

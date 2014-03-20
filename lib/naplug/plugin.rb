@@ -12,7 +12,7 @@ module Naplug
 
     include Naplug::Helpers::Grokkers
 
-    attr_reader :block, :plugins, :tag, :_data
+    attr_reader :block, :plugins, :tag
 
     def initialize(tag, block, meta)
       @tag = tag
