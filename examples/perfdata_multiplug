@@ -9,7 +9,7 @@ class PerfDataPlugPlugin
 
   include Naplug
 
-  plugin :p do |p|
+  plugin :p, :benchmark => true do |p|
 
     plugin :p1 do |p1|
       p1.status.ok!
