@@ -1,8 +1,10 @@
 # Naplug [![Gem Version](https://badge.fury.io/rb/naplug.png)](http://badge.fury.io/rb/naplug)
 
-*Naplug* is a [Nagios plugin](http://nagiosplug.sourceforge.net/developer-guidelines.html) library for Ruby focused on plugin internals: organization, status, performance data, output and exit code handling. It contains (but does not include by default) functionality related to option and argument parsing, allowing plugin developers to use [any of the many fine CLI tools available](https://www.ruby-toolbox.com/categories/CLI_Option_Parsers) for this purpose. It aims to ease the task of writing Nagios plugins in Ruby and _handling the paperwork_, allowing the plugin developer to concentrate on the test logic of the plugin. Some of internal implementation is largely modeled after the very excellent [Worlkflow](https://github.com/geekq/workflow) library.
+**Naplug** is a [Nagios plugin](http://nagiosplug.sourceforge.net/developer-guidelines.html) library for Ruby focused on plugin internals: organization, status, performance data, output and exit code handling. It contains (but does not include by default) functionality related to option and argument parsing, allowing plugin developers the choice to use the built-in parser or [any of the many other fine CLI tools available](https://www.ruby-toolbox.com/categories/CLI_Option_Parsers) for this purpose. 
 
-*Naplug* allows plugins to contain other plugins (referred to as *plugs*), which are a useful abstraction to break up significant tasks that the plugin as a whole must perform in order to determine the state of a service or host. The status and output of these plugs is thus used to determine the overall status of the plugin and build the output depending on said status.
+**Naplug** aims to ease the task of writing Nagios plugins in Ruby by _handling the paperwork_, allowing the plugin developer to concentrate on the test logic of the plugin. Some of the internal implementation is largely modeled after the very excellent [Worlkflow](https://github.com/geekq/workflow) library.
+
+**Naplug** allows plugins to contain other plugins (referred to as *plugs*), which are a useful abstraction to break up significant tasks that the plugin as a whole must perform in order to determine the state of a service or host. The status and output of these plugs is thus used to determine the overall status of the plugin and build the output depending on said status.
 
 While *Naplug* handles the nitty-gritty of Nagios plugins, it is important to have familiarity with the [Nagios Plugin Developer Guidelines](http://nagiosplug.sourceforge.net/developer-guidelines.html).
 
@@ -15,20 +17,20 @@ While *Naplug* handles the nitty-gritty of Nagios plugins, it is important to ha
 
 Naplug approaches Nagios plugins as Ruby classes (note that `plugin` is a reserved keyword at both the class and instance levels). To use *Naplug*, install the gem and:
 
-    #!/usr/bin/end ruby -rubygems
+    #!/usr/bin/env ruby
     require 'naplug'
     
     class MyPlugin
       include Naplug
       plugin do |p|
-        ...
+        ... <do plugin work> ...
       end  
     end
     
     MyPlugin.new.exec!
+
     
-    
-All examples will omit the `require`s for readability.
+All examples in this document will omit the `require` for readability.
  
 A very simple plugin that always returns an OK status:
     
@@ -44,7 +46,7 @@ A very simple plugin that always returns an OK status:
 
     AlwaysOkPlugin.new.exec!
 
-In the above example, a new class `AlwaysOkPlugin` is defined (the class name is arbitrary), and within this class, a plugin is created, which performs some work to set the status and output of the plugin. Once the class is defined, a new instance of the plugin is created and executed. The `exec!` method executes the plugin, evaluates status, produces correctly formatted output, and exits with the appropriate exit code:
+In the above example, a new class, `AlwaysOkPlugin`, is defined (the class name is arbitrary), and within this class, a plugin is created, which performs some work to set the status and output of the plugin. Once the class is defined, a new instance of the plugin is created and executed. The `exec!` method executes the plugin, evaluates status, produces correctly formatted output, and exits with the appropriate exit code:
 
     naplug@plugin:~: alwaysok 
     OK: Optimism level: 100%
@@ -577,7 +579,7 @@ A helper is however built-in, and uses the small and very flexible [*trollop*] l
       
     end
     
-Naplug does change the behavior of *Trollop* so that when arguments generate an error, these are handled correctly as a plugin (producing an `UNKNOWN` status).
+Naplug does change the behavior of *Trollop* so that when arguments generate an error, these are handled correctly as a plugin (producing an `UNKNOWN` status).r
 
 # Futures
 

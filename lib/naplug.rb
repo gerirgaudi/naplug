@@ -11,7 +11,9 @@
 #--
 # Naplug::ClassMethods and Naplug::InstanceMethods
 
+require 'naplug/meta'
 require 'naplug/plugin'
+require 'naplug/helpers/grokkers'
 
 module Naplug
 
@@ -19,19 +21,28 @@ module Naplug
 
   module ClassMethods
 
+    include Naplug::Helpers::Grokkers
+
     # @!scope class
 
     # @!attribute [r] plugins
     #   @return [Hash<Symbol, Plugin>] metaplugins
-    attr_reader :plugins
+    attr_reader :plugins, :_time
 
     # Create a metaplugin (which basically contains a tag and a block)
     # @param tag [Symbol] the plugin tag
     # @return [Plugin] a metaplugin
     def plugin(*tagmeta, &block)
       tag, meta = tagmeta_grok tagmeta
+      @metas = Hash.new unless @metas
+      @metas[tag] = Meta.new meta.merge :meta => true
       @plugins = Hash.new unless @plugins
       @plugins[tag] = create_metaplugin tag, meta, block
+      @_time = { :start => Time.now } #  if m[:benchmark]
+    end
+
+    def meta(m)
+      @_time = { :start => Time.now } #  if m[:benchmark]
     end
 
     # A list of plugin tags
@@ -48,28 +59,7 @@ module Naplug
         define_method "#{tag}".to_sym  do; @plugins[tag];  end    # <tag> methods for quick access to plugins
         define_method "#{tag}!".to_sym do; self.exec! tag; end    # <tag>! methods to involke exec! on a given plugin
       end
-      Plugin.new tag, block, meta.merge({ :parent => self })
-    end
-
-    def tagmeta_grok(tagmeta)
-      case tagmeta.size
-        when 0
-          [:main, {}]
-        when 1
-          case tagmeta[0]
-            when Symbol
-              [tagmeta[0], {}]
-            when Hash
-              [:main,tagmeta[0]]
-            else
-              raise Naplug::Error, 'ArgumentError on Naplug#plugin'
-          end
-        when 2
-          raise Naplug::Error, 'ArgumentError on Naplug#plugin' unless tagmeta[0].is_a? Symbol and tagmeta[1].is_a? Hash
-          tagmeta[0..1]
-        else
-          raise Naplug::Error, 'ArgumentError on Naplug#plugin'
-      end
+      Plugin.new tag, block, meta.merge(:parent => self, :meta => true)
     end
 
   end
@@ -120,8 +110,11 @@ module Naplug
     # Execute, evaluate and exit the plugin according to the plugin status, outputting the plugin's text output (and performance data, if applicable)
     # @param tag [Symbol] a plugin tag
     def exec!(tag = default_plugin.tag)
-      exec tag
-      eval tag
+      t = Benchmark.realtime do
+        exec tag
+        eval tag
+      end
+    #  @plugins[tag].perfdata! "monitoring.#{File.basename($0)}.#{tag}", t if @plugins[tag].meta.benchmark
       exit tag
     end
 
@@ -158,12 +151,7 @@ module Naplug
 
     # @return [Array<PerformanceData>] a list of performance data objects
     def perfdata(tag = default_plugin.tag)
-      plugin = @plugins[tag]
-      if plugin.has_plugins?
-        plugin.plugins.values.select { |plug| plug.perfdata }.map { |plug| plug.perfdata }
-      else
-        plugin.perfdata ? [plugin.perfdata] : []
-      end
+      @plugins[tag].perfdata(:deep).flatten.select { |pd| pd}
     end
 
     private
@@ -188,7 +176,7 @@ module Naplug
 
     def plugins!
       self.class.plugins.each do |tag,plugin|
-        @plugins[tag] = Plugin.new tag, plugin.block, {}
+        @plugins[tag] = Plugin.new tag, plugin.block, plugin.meta.to_h.merge(:meta => false)
       end
     end
 
