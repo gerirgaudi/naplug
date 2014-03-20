@@ -27,7 +27,7 @@ module Naplug
 
     # @!attribute [r] plugins
     #   @return [Hash<Symbol, Plugin>] metaplugins
-    attr_reader :plugins
+    attr_reader :plugins, :_time
 
     # Create a metaplugin (which basically contains a tag and a block)
     # @param tag [Symbol] the plugin tag
@@ -114,7 +114,7 @@ module Naplug
         exec tag
         eval tag
       end
-      @plugins[tag].perfdata! "monitoring.#{File.basename($0)}.#{tag}", t if @plugins[tag].meta.benchmark
+    #  @plugins[tag].perfdata! "monitoring.#{File.basename($0)}.#{tag}", t if @plugins[tag].meta.benchmark
       exit tag
     end
 
@@ -195,8 +195,6 @@ module Naplug
     end
 
     def exit(tag = default_plugin.tag)
-      benchmark = Time.now - self.class._time[:start]
-      puts benchmark
       print "%s\n" % [to_str(tag)]
       Kernel::exit @plugins[tag].status.to_i
     end
