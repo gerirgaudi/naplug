@@ -22,7 +22,7 @@ module Naplug
     def to_s(output = :text_output)
       case output
         when :text_output then @text_output
-        when :long_text   then @long_text.joing "\n"
+        when :long_text   then @long_text.join "\n"
         else nil
       end
     end
